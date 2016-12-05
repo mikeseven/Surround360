@@ -6,6 +6,7 @@
 * LICENSE_render file in the root directory of this subproject. An additional grant
 * of patent rights can be found in the PATENTS file in the same directory.
 */
+
 #pragma once
 
 #include <assert.h>
@@ -58,7 +59,7 @@ static void requireArgGeqZero(const int& argValue, const string& argName) {
 
 // return the current system time in seconds. reasonably high precision.
 static double getCurrTimeSec() {
-  return (double)(system_clock::now().time_since_epoch().count()) / 1000000.0;
+  return (double)(system_clock::now().time_since_epoch().count()) * system_clock::period::num / system_clock::period::den;
 }
 
 // scans srcDir for all files/folders, and return a vector of filenames (or full file

@@ -6,6 +6,7 @@
 * LICENSE_render file in the root directory of this subproject. An additional grant
 * of patent rights can be found in the PATENTS file in the same directory.
 */
+
 #pragma once
 
 #include <exception>
@@ -224,12 +225,14 @@ class CameraIsp {
         }
       }
     }
+    const int w = 2;
+    const int diameter = 2 * w + 1;
+    const int diameterSquared = square(diameter);
 
     for (int i = 0; i < height; ++i) {
       for (int j = 0; j < width; ++j) {
         // Homogenity test
         int hCount = 0;
-        const int w = 2;
         for (int l = -w; l <= w; ++l) {
           const int il = reflect(i + l, height);
           for (int k = -w; k <= w; ++k) {
@@ -237,7 +240,7 @@ class CameraIsp {
             hCount += (dH.at<float>(il, jk) <= dV.at<float>(il, jk));
           }
         }
-        const float alpha = float(hCount) / square(2.0f * w + 1.0f);
+        const float alpha = float(hCount) / diameterSquared;
         green.at<float>(i, j) = lerp(gV.at<float>(i, j), gH.at<float>(i, j), alpha);
       }
     }

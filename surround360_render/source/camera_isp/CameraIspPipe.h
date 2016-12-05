@@ -1,3 +1,12 @@
+/**
+* Copyright (c) 2016-present, Facebook, Inc.
+* All rights reserved.
+*
+* This source code is licensed under the BSD-style license found in the
+* LICENSE_render file in the root directory of this subproject. An additional grant
+* of patent rights can be found in the PATENTS file in the same directory.
+*/
+
 #pragma once
 
 #include "CameraIsp.h"
@@ -88,11 +97,13 @@ class CameraIspPipe : public CameraIsp {
         CameraIspGenFast8(
             &inputBufferBp, width, height, &vignetteTableHBp, &vignetteTableVBp,
             blackLevel.x, blackLevel.y, blackLevel.z, whiteBalanceGain.x, whiteBalanceGain.y, whiteBalanceGain.z,
+            clampMin.x, clampMin.y, clampMin.z, clampMax.x, clampMax.y, clampMax.z,
             sharpenning.x, sharpenning.y, sharpenning.z, &ccMatBp, &toneTableBp, swizzle, &outputBufferBp);
       } else {
         CameraIspGen8(
             &inputBufferBp, width, height, &vignetteTableHBp, &vignetteTableVBp,
             blackLevel.x, blackLevel.y, blackLevel.z, whiteBalanceGain.x, whiteBalanceGain.y, whiteBalanceGain.z,
+            clampMin.x, clampMin.y, clampMin.z, clampMax.x, clampMax.y, clampMax.z,
             sharpenning.x, sharpenning.y, sharpenning.z, &ccMatBp, &toneTableBp, swizzle, &outputBufferBp);
       }
     } else {
@@ -100,11 +111,13 @@ class CameraIspPipe : public CameraIsp {
         CameraIspGenFast16(
             &inputBufferBp, width, height, &vignetteTableHBp, &vignetteTableVBp,
             blackLevel.x, blackLevel.y, blackLevel.z, whiteBalanceGain.x, whiteBalanceGain.y, whiteBalanceGain.z,
+            clampMin.x, clampMin.y, clampMin.z, clampMax.x, clampMax.y, clampMax.z,
             sharpenning.x, sharpenning.y, sharpenning.z, &ccMatBp, &toneTableBp, swizzle, &outputBufferBp);
       } else {
         CameraIspGen16(
             &inputBufferBp, width, height, &vignetteTableHBp, &vignetteTableVBp,
             blackLevel.x, blackLevel.y, blackLevel.z, whiteBalanceGain.x, whiteBalanceGain.y, whiteBalanceGain.z,
+            clampMin.x, clampMin.y, clampMin.z, clampMax.x, clampMax.y, clampMax.z,
             sharpenning.x, sharpenning.y, sharpenning.z, &ccMatBp, &toneTableBp, swizzle, &outputBufferBp);
       }
     }

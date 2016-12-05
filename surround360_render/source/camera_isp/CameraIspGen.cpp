@@ -1,3 +1,12 @@
+/**
+* Copyright (c) 2016-present, Facebook, Inc.
+* All rights reserved.
+*
+* This source code is licensed under the BSD-style license found in the
+* LICENSE_render file in the root directory of this subproject. An additional grant
+* of patent rights can be found in the PATENTS file in the same directory.
+*/
+
 #include "Halide.h"
 
 #include <gflags/gflags.h>
@@ -197,7 +206,8 @@ class CameraIspGen
 
     // Homogenity calulation over a diameter size region
     const int w = 2;
-    const int diameter = 2*w + 1;
+    const int diameter = 2 * w + 1;
+    const int diameterSquared = diameter * diameter;
     RDom d(0, diameter, 0, diameter);
     Expr xp = x + d.x - w;
     Expr yp = y + d.y - w;
@@ -214,8 +224,8 @@ class CameraIspGen
     // The local green estimate is a blend of the horizontal and vertical
     // green channel estimate based on how horizontal or vertical the
     // region is.
-    Expr alpha = cast<float>(hCount(x, y)) / float(diameter * diameter);
     Func g;
+    Expr alpha = cast<float>(hCount(x, y)) / float(diameterSquared);
     g(x, y) = lerp(gV(x, y), gH(x, y), alpha);
 
     // We take the log of green channel which helps to supress chroma
@@ -307,7 +317,14 @@ class CameraIspGen
       Expr blackLevelB,
       Expr whiteBalanceGainR,
       Expr whiteBalanceGainG,
-      Expr whiteBalanceGainB) {
+      Expr whiteBalanceGainB,
+      Expr clampMinR,
+      Expr clampMinG,
+      Expr clampMinB,
+      Expr clampMaxR,
+      Expr clampMaxG,
+      Expr clampMaxB) {
+
     // These are the values we already know from the input
     // x_y = the value of channel x at a site in the input of channel y
     // gb refers to green sites in the blue rows
@@ -318,9 +335,28 @@ class CameraIspGen
     Expr minRawB = blackLevelB;
     Expr maxRaw = float((1 << 16) - 1);
 
-    Expr invRangeR = whiteBalanceGainR / (maxRaw - minRawR);
-    Expr invRangeG = whiteBalanceGainG / (maxRaw - minRawG);
-    Expr invRangeB = whiteBalanceGainB / (maxRaw - minRawB);
+    Expr rangeRawR = maxRaw - minRawR;
+    Expr rangeRawG = maxRaw - minRawG;
+    Expr rangeRawB = maxRaw - minRawB;
+
+    Expr biasR = minRawR + clampMinR * rangeRawR / whiteBalanceGainR;
+    Expr biasG = minRawG + clampMinG * rangeRawG / whiteBalanceGainG;
+    Expr biasB = minRawB + clampMinB * rangeRawB / whiteBalanceGainB;
+
+    Expr invRangeR = whiteBalanceGainR / (rangeRawR * (clampMaxR - clampMinR));
+    Expr invRangeG = whiteBalanceGainG / (rangeRawG * (clampMaxG - clampMinG));
+    Expr invRangeB = whiteBalanceGainB / (rangeRawB * (clampMaxB - clampMinB));
+
+    Expr redWB = (deinterleaved(x, y, 0) - biasR) * invRangeR;
+    Expr greenWB = (deinterleaved(x, y, 1) - biasG) * invRangeG;
+    Expr blueWB = (deinterleaved(x, y, 2) - biasB) * invRangeB;
+
+    if (!Fast) {
+      redWB *= vignetteTableH(0, x) * vignetteTableV(0, y);
+      greenWB *= vignetteTableH(1, x) * vignetteTableV(1, y);
+      blueWB *= vignetteTableH(2, x) * vignetteTableV(2, y);
+    }
+
 
     // Raw bayer pixels
     Func rawRed("rawRed");
@@ -328,17 +364,10 @@ class CameraIspGen
     Func rawGreenB("rawGreenB");
     Func rawGreenR("rawGreenR");
 
-    if (Fast) {
-      rawRed(x, y)    = clamp((deinterleaved(x, y, 0) - minRawR) * invRangeR, 0.0f, 1.0f);
-      rawBlue(x, y)   = clamp((deinterleaved(x, y, 2) - minRawB) * invRangeB, 0.0f, 1.0f);
-      rawGreenB(x, y) = clamp((deinterleaved(x, y, 1) - minRawG) * invRangeG, 0.0f, 1.0f);
-      rawGreenR(x, y) = clamp((deinterleaved(x, y, 1) - minRawG) * invRangeG, 0.0f, 1.0f);
-    } else {
-      rawRed(x, y)    = clamp((deinterleaved(x, y, 0) - minRawR) * invRangeR * vignetteTableH(0, x) * vignetteTableV(0, y), 0.0f, 1.0f);
-      rawBlue(x, y)   = clamp((deinterleaved(x, y, 2) - minRawB) * invRangeB * vignetteTableH(2, x) * vignetteTableV(2, y), 0.0f, 1.0f);
-      rawGreenB(x, y) = clamp((deinterleaved(x, y, 1) - minRawG) * invRangeG * vignetteTableH(1, x) * vignetteTableV(1, y), 0.0f, 1.0f);
-      rawGreenR(x, y) = clamp((deinterleaved(x, y, 1) - minRawG) * invRangeG * vignetteTableH(1, x) * vignetteTableV(1, y), 0.0f, 1.0f);
-    }
+    rawRed(x, y)    = clamp(redWB, 0.0f, 1.0f);
+    rawBlue(x, y)   = clamp(blueWB, 0.0f, 1.0f);
+    rawGreenB(x, y) = clamp(greenWB, 0.0f, 1.0f);
+    rawGreenR(x, y) = rawGreenB(x, y);
 
     // These are the ones we need to interpolate
     // Rename build up planar bayer channels
@@ -520,6 +549,12 @@ class CameraIspGen
       Param<float> whiteBalanceGainR,
       Param<float> whiteBalanceGainG,
       Param<float> whiteBalanceGainB,
+      Param<float> clampMinR,
+      Param<float> clampMinG,
+      Param<float> clampMinB,
+      Param<float> clampMaxR,
+      Param<float> clampMaxG,
+      Param<float> clampMaxB,
       Param<float> sharpenningR,
       Param<float> sharpenningG,
       Param<float> sharpenningB,
@@ -540,9 +575,14 @@ class CameraIspGen
     Func colorCorrected("ccm");
     Func sharpened("sharpened");
 
-    deinterleaved = deinterleave(raw);
-    demosaiced     = demosaic(deinterleaved, vignetteTableH, vignetteTableV, blackLevelR, blackLevelG, blackLevelB, whiteBalanceGainR, whiteBalanceGainG, whiteBalanceGainB);
-    colorCorrected = applyCCM(demosaiced, ccm);
+    deinterleaved   = deinterleave(raw);
+    demosaiced      = demosaic(
+      deinterleaved,
+      vignetteTableH, vignetteTableV,
+      blackLevelR, blackLevelG, blackLevelB,
+      whiteBalanceGainR, whiteBalanceGainG, whiteBalanceGainB,
+      clampMinR, clampMinG, clampMinB, clampMaxR, clampMaxG, clampMaxB);
+    colorCorrected  = applyCCM(demosaiced, ccm);
     toneCorrected(x, y, c) = toneTable(c, colorCorrected(x, y, c));
 
     if (Fast) {
@@ -600,6 +640,12 @@ int main(int argc, char **argv) {
   Param<float> whiteBalanceGainR("whiteBalanceGainR");
   Param<float> whiteBalanceGainG("whiteBalanceGainG");
   Param<float> whiteBalanceGainB("whiteBalanceGainB");
+  Param<float> clampMinR("clampMinR");
+  Param<float> clampMinG("clampMinG");
+  Param<float> clampMinB("clampMinB");
+  Param<float> clampMaxR("clampMaxR");
+  Param<float> clampMaxG("clampMaxG");
+  Param<float> clampMaxB("clampMaxB");
   Param<float> sharpenningR("sharpenningR");
   Param<float> sharpenningG("sharpenningG");
   Param<float> sharpenningB("sharpenninngB");
@@ -624,17 +670,28 @@ int main(int argc, char **argv) {
   vignetteTableVM = BoundaryConditions::mirror_image(vignetteTableV);
 
   Func cameraIsp = cameraIspGen.generate(
-      target, rawM, width, height, vignetteTableHM, vignetteTableVM, blackLevelR, blackLevelG, blackLevelB, whiteBalanceGainR,
-      whiteBalanceGainG, whiteBalanceGainB, sharpenningR, sharpenningG, sharpenningB, ccm, toneTable, BGR, FLAGS_output_bpp);
+      target, rawM, width, height, vignetteTableHM, vignetteTableVM,
+      blackLevelR, blackLevelG, blackLevelB,
+      whiteBalanceGainR, whiteBalanceGainG, whiteBalanceGainB,
+      clampMinR, clampMinG, clampMinB, clampMaxR, clampMaxG, clampMaxB,
+      sharpenningR, sharpenningG, sharpenningB,
+      ccm, toneTable, BGR, FLAGS_output_bpp);
 
   Func cameraIspFast =
     cameraIspGenFast.generate(
-        target, rawM, width, height, vignetteTableHM, vignetteTableVM, blackLevelR, blackLevelG, blackLevelB, whiteBalanceGainR,
-        whiteBalanceGainG, whiteBalanceGainB, sharpenningR, sharpenningG, sharpenningB, ccm, toneTable, BGR, FLAGS_output_bpp);
+        target, rawM, width, height, vignetteTableHM, vignetteTableVM,
+        blackLevelR, blackLevelG, blackLevelB,
+        whiteBalanceGainR, whiteBalanceGainG, whiteBalanceGainB,
+        clampMinR, clampMinG, clampMinB, clampMaxR, clampMaxG, clampMaxB,
+        sharpenningR, sharpenningG, sharpenningB,
+        ccm, toneTable, BGR, FLAGS_output_bpp);
 
   std::vector<Argument> args = {
-    input, width, height, vignetteTableH, vignetteTableV, blackLevelR, blackLevelG, blackLevelB, whiteBalanceGainR, whiteBalanceGainG,
-    whiteBalanceGainB, sharpenningR, sharpenningG, sharpenningB,  ccm, toneTable,  BGR};
+    input, width, height, vignetteTableH, vignetteTableV,
+    blackLevelR, blackLevelG, blackLevelB,
+    whiteBalanceGainR, whiteBalanceGainG, whiteBalanceGainB,
+    clampMinR, clampMinG, clampMinB, clampMaxR, clampMaxG, clampMaxB,
+    sharpenningR, sharpenningG, sharpenningB,  ccm, toneTable,  BGR};
 
   // Compile the pipelines
   // Use to cameraIsp.print_loop_nest() here to debug loop unrolling

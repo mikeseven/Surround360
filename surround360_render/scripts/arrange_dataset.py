@@ -1,3 +1,10 @@
+# Copyright (c) 2016-present, Facebook, Inc.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE_render file in the root directory of this subproject. An additional grant
+# of patent rights can be found in the PATENTS file in the same directory.
+
 import argparse
 import sys
 
@@ -81,7 +88,7 @@ if __name__ == "__main__":
     sorted_images = sorted(list_only_files(raw_dir))
     for i in range(0, len(sorted_images)):
       prev_name = raw_dir + "/" + sorted_images[i]
-      new_name = raw_dir + "/cam" + str(i) + ".bmp"
+      new_name = raw_dir + "/cam" + str(i) + ".tiff"
       system("mv " + prev_name + " " + new_name)
 
   end_time = timer()
