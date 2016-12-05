@@ -15,6 +15,7 @@
 
 #include "CameraMetadata.h"
 #include "MathUtil.h"
+#include "MikeUtil.h"
 
 namespace surround360 {
 namespace warper {
@@ -203,31 +204,35 @@ Mat sideFisheyeToSpherical(
   const float offsetVRad = (M_PI - fovVRad) / 2.0f;
 
   Mat warpMat(Size(outWidth, outHeight), CV_32FC2);
-  for (int y = 0; y < outHeight; ++y) {
-    for (int x = 0; x < outWidth; ++x) {
+  parallel_for_<int>(0,outHeight,0,outWidth,
+    [&](int x, int y) {
+  // for (int y = 0; y < outHeight; ++y) {
+  //  for (int x = 0; x < outWidth; ++x) {
       const float theta =
         fovHRad * (1.0 - float(x) / float(outWidth)) + offsetHRad;
       const float phi = fovVRad * float(y) / float(outHeight) + offsetVRad;
-      const float xSphere = cos(theta) * sin(phi);
-      const float ySphere = sin(theta) * sin(phi);
-      const float zSphere = cos(phi);
-      const float theta2 = atan2(-zSphere, xSphere);
-      const float phi2 = acos(ySphere);
+      const float xSphere = cosf(theta) * sinf(phi);
+      const float ySphere = sinf(theta) * sinf(phi);
+      const float zSphere = cosf(phi);
+      const float theta2 = std::atan2(-zSphere, xSphere);
+      const float phi2 = std::acos(ySphere);
       const float r = phi2 / toRadians(camModel.fisheyeFovDegrees / 2.0f);
       const float srcX =
         camModel.imageCenterX + camModel.usablePixelsRadius * r * cos(theta2);
       const float srcY =
         camModel.imageCenterY + camModel.usablePixelsRadius * r * sin(theta2);
       warpMat.at<Point2f>(y, x) = Point2f(srcX, srcY);
-    }
-  }
+  //   }
+  // }
+    });
+
   Mat eqrImage(Size(outWidth, outHeight), CV_8UC4);
   remap(
     srcRGBA,
     eqrImage,
     warpMat,
     Mat(),
-    CV_INTER_CUBIC,
+    CV_INTER_LANCZOS4, //[mbs]CV_INTER_CUBIC,
     BORDER_CONSTANT,
     Scalar(0, 0, 0, 0));
   return eqrImage;

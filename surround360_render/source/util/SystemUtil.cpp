@@ -18,6 +18,8 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <tbb/task_scheduler_init.h>
+
 namespace fLB {
 extern bool FLAGS_help;
 extern bool FLAGS_helpshort;
@@ -69,6 +71,10 @@ void sigHandler(int signal) {
 void initSurround360(int argc, char** argv) {
   // Initialize Google's logging library
   google::InitGoogleLogging(argv[0]);
+
+  // TBB
+  const int nthreads = tbb::task_scheduler_init::default_num_threads();
+  tbb::task_scheduler_init init(nthreads);
 
   // GFlags
   google::ParseCommandLineNonHelpFlags(&argc, &argv, true);

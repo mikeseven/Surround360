@@ -179,11 +179,11 @@ if __name__ == "__main__":
       render_params["FINAL_EQR_WIDTH"]              = 3080
       render_params["FINAL_EQR_HEIGHT"]             = 3080
     elif quality == "4k":
-      render_params["SHARPENNING"]                  = 0.25
+      render_params["SHARPENNING"]                  = 0.75
       render_params["EQR_WIDTH"]                    = 4200
-      render_params["EQR_HEIGHT"]                   = 1024
+      render_params["EQR_HEIGHT"]                   = 2100
       render_params["FINAL_EQR_WIDTH"]              = 4096
-      render_params["FINAL_EQR_HEIGHT"]             = 2048
+      render_params["FINAL_EQR_HEIGHT"]             = 4096
     elif quality == "6k":
       render_params["SHARPENNING"]                  = 0.25
       render_params["EQR_WIDTH"]                    = 6300

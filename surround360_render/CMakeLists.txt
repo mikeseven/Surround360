@@ -2,7 +2,9 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.2)
 
 PROJECT(Surround360Render CXX)
 
-FIND_PACKAGE(OpenCV)
+list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR} )
+
+FIND_PACKAGE(OpenCV 3 REQUIRED)
 INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source/util)
@@ -11,6 +13,20 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source/camera_isp)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source/calibration)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source/render)
 INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR})
+
+find_package(Qt5Core)
+find_package(Qt5GUI)
+find_package(Qt5Widgets)
+find_package(Qt5Concurrent)
+find_package(Qt5OpenGL)
+find_package(Qt5Test)
+
+find_package(TBB REQUIRED )
+
+if ( TBB_FOUND )
+    include_directories( ${TBB_INCLUDE_DIRS} )
+    add_definitions( "-DENABLE_TBB=true" )
+endif()
 
 IF (DEFINED HALIDE_DIR)
   INCLUDE_DIRECTORIES(${HALIDE_DIR}/include)
@@ -90,6 +106,7 @@ ADD_LIBRARY(
   ${render_SRC}
   ${util_SRC}
 )
+TARGET_LINK_LIBRARIES(LibVrCamera tbb)
 TARGET_COMPILE_FEATURES(LibVrCamera PRIVATE cxx_range_for)
 
 ### Raw2Rgb ###

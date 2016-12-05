@@ -42,7 +42,7 @@ Mat NovelViewUtil::generateNovelViewSimpleCvRemap(
     }
   }
   Mat novelView;
-  remap(srcImage, novelView, warpMap, Mat(), CV_INTER_CUBIC);
+  remap(srcImage, novelView, warpMap, Mat(), CV_INTER_LANCZOS4);//[mbs]CV_INTER_CUBIC);
   return novelView;
 }
 
@@ -204,7 +204,7 @@ pair<Mat, Mat> NovelViewGeneratorLazyFlow::renderLazyNovelView(
     }
   }
   Mat remappedFlow;
-  remap(opticalFlow, remappedFlow, warpOpticalFlow, Mat(), CV_INTER_CUBIC);
+  remap(opticalFlow, remappedFlow, warpOpticalFlow, Mat(), CV_INTER_LANCZOS4);//[mbs]CV_INTER_CUBIC);
 
   Mat warpComposition = Mat(Size(width, height), CV_32FC2);
   for (int y = 0; y < height; ++y) {
@@ -219,7 +219,7 @@ pair<Mat, Mat> NovelViewGeneratorLazyFlow::renderLazyNovelView(
   }
 
   Mat novelView;
-  remap(srcImage, novelView, warpComposition, Mat(), CV_INTER_CUBIC);
+  remap(srcImage, novelView, warpComposition, Mat(), CV_INTER_LANCZOS4);//[mbs]CV_INTER_CUBIC);
   Mat novelViewFlowMag(novelView.size(), CV_32F);
   // so far we haven't quite set things up to exactly match the original
   // O(n^3) algorithm. we need to blend the two novel views based on the

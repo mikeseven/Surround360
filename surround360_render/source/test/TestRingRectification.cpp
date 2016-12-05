@@ -24,6 +24,7 @@
 #include "StringUtil.h"
 #include "SystemUtil.h"
 #include "VrCamException.h"
+#include "ImageWarper.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -97,8 +98,11 @@ int main(int argc, char** argv) {
       LOG(INFO) << "\t" << camModelArray[i].cameraId << ": " << srcImagePath;
       Mat origImage = imreadExceptionOnFail(srcImagePath, CV_LOAD_IMAGE_COLOR);
       Mat imageUndistorted;
-      cvUndistortBicubic(
-        origImage, imageUndistorted, intrinsic, distCoeffs, intrinsic);
+      /*cvUndistortBicubic(
+        origImage, imageUndistorted, intrinsic, distCoeffs, intrinsic);*/
+
+      imageUndistorted = surround360::warper::sideFisheyeToSpherical(origImage, camModelArray[i], 2048, 2048);
+
       sideCamImages[frameIdx].push_back(imageUndistorted);
     }
   }
