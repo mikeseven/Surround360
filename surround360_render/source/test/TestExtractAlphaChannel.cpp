@@ -16,11 +16,12 @@
 #include <string>
 #include <vector>
 
+#include "SystemUtil.h"
 #include "StringUtil.h"
 #include "CvUtil.h"
-#include "SystemUtil.h"
 
 #include <gflags/gflags.h>
+#define GLOG_NO_ABBREVIATED_SEVERITIES
 #include <glog/logging.h>
 
 using namespace std;

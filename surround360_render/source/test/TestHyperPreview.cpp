@@ -18,14 +18,15 @@
 #include <string>
 #include <vector>
 
+#include "SystemUtil.h"
 #include "CameraMetadata.h"
 #include "CvUtil.h"
 #include "ImageWarper.h"
 #include "MathUtil.h"
-#include "SystemUtil.h"
 #include "VrCamException.h"
 
 #include <gflags/gflags.h>
+#define GLOG_NO_ABBREVIATED_SEVERITIES
 #include <glog/logging.h>
 
 using namespace cv;

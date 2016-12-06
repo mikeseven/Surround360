@@ -14,17 +14,18 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <limits>
 
+#include "SystemUtil.h"
 #include "CvUtil.h"
 #include "MathUtil.h"
 #include "NovelView.h"
 #include "OpticalFlowVisualization.h"
 #include "StringUtil.h"
-#include "SystemUtil.h"
-#include "SystemUtil.h"
 #include "VrCamException.h"
 
 #include <gflags/gflags.h>
+#define GLOG_NO_ABBREVIATED_SEVERITIES
 #include <glog/logging.h>
 
 using namespace std;
@@ -207,8 +208,8 @@ void middleburyInterpolationExperiment() {
         kShift, novelViewMerged, novelViewFromL, novelViewFromR);
 
     const double rmse = imageDiffRMSE(groundTruthImageMid, novelViewMerged);
-    minRMSE = min(minRMSE, rmse);
-    maxRMSE = max(maxRMSE, rmse);
+    minRMSE = std::min(minRMSE, rmse);
+    maxRMSE = std::max(maxRMSE, rmse);
     avgRMSE += rmse;
 
     LOG(INFO) << dataset << "\t" << rmse;

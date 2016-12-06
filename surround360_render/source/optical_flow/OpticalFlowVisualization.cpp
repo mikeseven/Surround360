@@ -7,6 +7,8 @@
 * of patent rights can be found in the PATENTS file in the same directory.
 */
 
+#define _USE_MATH_DEFINES
+#include <math.h>
 #include "OpticalFlowVisualization.h"
 
 namespace surround360 {

@@ -32,6 +32,7 @@
 #include "VrCamException.h"
 
 #include <gflags/gflags.h>
+#define GLOG_NO_ABBREVIATED_SEVERITIES
 #include <glog/logging.h>
 
 using namespace cv;

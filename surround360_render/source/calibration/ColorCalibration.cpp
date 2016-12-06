@@ -14,6 +14,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <algorithm>
 
 #include "CameraIsp.h"
 #include "CvUtil.h"
@@ -216,8 +217,8 @@ Mat clampAndStretch(
 
   static const int kNumChannels = 3;
   for (int ch = 0; ch < kNumChannels; ++ch) {
-    rgbClampMin[ch] = std::max(0.0f, rgbClampMin[ch]);
-    rgbClampMax[ch] = std::min(1.0f, rgbClampMax[ch]);
+    rgbClampMin[ch] = max(0.0f, rgbClampMin[ch]);
+    rgbClampMax[ch] = min(1.0f, rgbClampMax[ch]);
   }
 
   CameraIsp cameraIsp(getJson(ispConfigFile), getBitsPerPixel(raw));
@@ -582,7 +583,7 @@ vector<ColorPatch> detectColorChart(
     const int height = boundingBox.size.height;
     const int area = mu.m00;
     const int aspectRatio =
-      1.0f * std::max(width, height) / (1.0f * std::min(width, height));
+      1.0f * max(width, height) / (1.0f * min(width, height));
 
     // Discard contours that are too small/large, non-square and non-convex
     if (area < minArea || area > maxArea ||
@@ -671,7 +672,7 @@ Mat dilateGaps(
 Mat createMorphElement(const Size imageSize, const int shape) {
   static const float kMorphFrac = 0.3f / 100.0f;
   const int morphRadius =
-    kMorphFrac * std::min(imageSize.width, imageSize.height);
+    kMorphFrac * min(imageSize.width, imageSize.height);
   Size morphSize = Size(2 * morphRadius + 1, 2 * morphRadius + 1);
   return getStructuringElement(
     shape,

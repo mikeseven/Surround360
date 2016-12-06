@@ -23,6 +23,7 @@
 #include "MonotonicTable.h"
 #include "VrCamException.h"
 
+#define GLOG_NO_ABBREVIATED_SEVERITIES
 #include <glog/logging.h>
 
 namespace surround360 {

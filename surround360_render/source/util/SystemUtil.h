@@ -22,6 +22,12 @@
 
 #include "VrCamException.h"
 
+//#ifdef _WINDOWS
+#define NOMINMAX
+#include <algorithm>
+#include <limits>
+//#endif
+
 namespace surround360 {
 namespace util {
 

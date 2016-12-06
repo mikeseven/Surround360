@@ -9,18 +9,24 @@
 
 #include "SystemUtil.h"
 
+#ifdef _WINDOWS
+#define backtrace(x,y) 0
+#define backtrace_symbols(x,y) NULL
+#else
 #include <execinfo.h>
+#endif
 #include <signal.h>
 
 #include <exception>
 #include <stdexcept>
 
 #include <gflags/gflags.h>
+#define GLOG_NO_ABBREVIATED_SEVERITIES
 #include <glog/logging.h>
 
 namespace fLB {
-extern bool FLAGS_help;
-extern bool FLAGS_helpshort;
+	bool FLAGS_help;
+	bool FLAGS_helpshort;
 }
 
 namespace surround360 {
@@ -61,7 +67,9 @@ void terminateHandler() {
 }
 
 void sigHandler(int signal) {
+  #ifndef _WINDOWS
   LOG(ERROR) << strsignal(signal);
+  #endif
   printStacktrace();
   abort();
 }
@@ -80,37 +88,51 @@ void initSurround360(int argc, char** argv) {
   set_terminate(terminateHandler);
 
   // terminate process: terminal line hangup
+#ifndef _WINDOWS
   signal(SIGHUP, sigHandler);
+#endif
 
   // terminate process: interrupt program
   signal(SIGINT, sigHandler);
 
   // create core image: quit program
+#ifndef _WINDOWS
   signal(SIGQUIT, sigHandler);
+#endif
 
   // create core image: illegal instruction
   signal(SIGILL, sigHandler);
 
   // create core image: trace trap
+#ifndef _WINDOWS
   signal(SIGTRAP, sigHandler);
+#endif
 
   // create core image: floating-point exception
   signal(SIGFPE, sigHandler);
 
   // terminate process: kill program
+#ifndef _WINDOWS
   signal(SIGKILL, sigHandler);
+#endif
 
   // create core image: bus error
+#ifndef _WINDOWS
   signal(SIGBUS, sigHandler);
+#endif
 
   // create core image: segmentation violation
   signal(SIGSEGV, sigHandler);
 
   // create core image: non-existent system call invoked
+#ifndef _WINDOWS
   signal(SIGSYS, sigHandler);
+#endif
 
   // terminate process: write on a pipe with no reader
+#ifndef _WINDOWS
   signal(SIGPIPE, sigHandler);
+#endif
 
   // terminate process: software termination signal
   signal(SIGTERM, sigHandler);

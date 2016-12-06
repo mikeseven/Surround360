@@ -17,12 +17,14 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <algorithm>
 
-#include "CvUtil.h"
 #include "SystemUtil.h"
+#include "CvUtil.h"
 #include "VrCamException.h"
 
 #include <gflags/gflags.h>
+#define GLOG_NO_ABBREVIATED_SEVERITIES
 #include <glog/logging.h>
 
 using namespace std;
@@ -45,7 +47,7 @@ int main(int argc, char** argv) {
   requireArg(FLAGS_binary_prefix, "binary_prefix");
   requireArg(FLAGS_dest_path, "dest_path");
 
-  int fd[FLAGS_file_count];
+  std:vector<int> fd(FLAGS_file_count);
   vector<string> binFilenames;
   for (int i = 0; i < FLAGS_file_count; ++i) {
     string fileName(FLAGS_binary_prefix + "/" + to_string(i) + ".bin");
@@ -84,12 +86,19 @@ int main(int argc, char** argv) {
     static const int kHeaderNumCams       = 7;
 
     cameraCount = 0;
-    uint32_t timestamps[FLAGS_file_count];
+    std::vector<uint32_t> timestamps(FLAGS_file_count);
     for (uint32_t i = 0; i < FLAGS_file_count; ++i) {
       static const int kNbitsMetadata = 4096 * CHAR_BIT;
       std::vector<unsigned char> imgbufMetadata(kNbitsMetadata);
-      size_t readCount = pread(fd[i], &imgbufMetadata[0], kNbitsMetadata, 0);
-      if (readCount <= 0) {
+#ifdef _WINDOWS
+	  lseek(fd[i], 0, SEEK_SET);
+      size_t readCount = 
+		  _read(fd[i], &imgbufMetadata[0], kNbitsMetadata);
+#else
+	  size_t readCount =
+		  pread(fd[i], &imgbufMetadata[0], kNbitsMetadata, 0);
+#endif
+	  if (readCount <= 0) {
         throw VrCamException("empty binary file: " + binFilenames[i]);
       }
 
@@ -167,15 +176,19 @@ int main(int argc, char** argv) {
   struct stat st = {0};
   string destPath(FLAGS_dest_path);
   if (stat(destPath.c_str(), &st) == -1) {
-    mkdir(destPath.c_str(), 0755);
+#ifndef _WINDOWS
+	  mkdir(destPath.c_str(), 0755);
+#else
+	  mkdir(destPath.c_str());
+#endif
   }
 
   // Read raw bytes and assemble them into images
-  off_t pos[FLAGS_file_count];
+  std::vector<off_t> pos(FLAGS_file_count);
 
   // Each bin file can have different number of frames
-  int frameCount[FLAGS_file_count];
-  size_t readCount[FLAGS_file_count];
+  std::vector<int> frameCount(FLAGS_file_count);
+  std::vector<size_t> readCount(FLAGS_file_count);
 
   // Total number of frames is properly updated later if FLAGS_frame_count is 0
   int totalFrameCount = FLAGS_frame_count * cameraCount;
@@ -220,12 +233,16 @@ int main(int argc, char** argv) {
     for (unsigned int cameraNumber = 0; cameraNumber < cameraCount; ++cameraNumber) {
       const int frameIndex = frameNumber * cameraCount + cameraNumber;
       const int idx = cameraNumber % FLAGS_file_count;
-      readCount[idx] = pread(fd[idx], &imgbuf[0], imageSize, pos[idx]);
-
+#ifdef _WINDOWS
+	  lseek(fd[idx], pos[idx], SEEK_SET);
+	  readCount[idx] = _read(fd[idx], &imgbuf[0], imageSize);
+#else
+	  readCount[idx] = pread(fd[idx], &imgbuf[0], imageSize, pos[idx]);
+#endif
       // Check if we reached EOF (read returns 0)
       if (readCount[idx] == 0) {
         // Check if all the files have reached EOF
-        if (!std::all_of(readCount, readCount + FLAGS_file_count, [](int x){ return x == 0; })) {
+        if (!std::all_of(readCount.begin(), readCount.end(), [](int x){ return x == 0; })) {
           continue;
         }
 

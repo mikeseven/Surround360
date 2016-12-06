@@ -12,13 +12,14 @@
 #include <string>
 #include <vector>
 
+#include "SystemUtil.h"
 #include "CameraIsp.h"
 #include "ColorCalibration.h"
 #include "CvUtil.h"
-#include "SystemUtil.h"
 #include "VrCamException.h"
 
 #include <gflags/gflags.h>
+#define GLOG_NO_ABBREVIATED_SEVERITIES
 #include <glog/logging.h>
 
 using namespace std;
