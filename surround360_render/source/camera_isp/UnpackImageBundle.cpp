@@ -265,7 +265,7 @@ int main(int argc, char** argv) {
       pos[idx] += readCount[idx];
 
       if (frameIndex % 10 == 0 || frameIndex == lastFrame) {
-        int percentDoneCurr = frameIndex * 100 / lastFrame;
+        int percentDoneCurr = (frameIndex + 1) * 100 / (lastFrame + 1);
         LOG_IF(INFO, percentDoneCurr != percentDonePrev) << "Percent done " << percentDoneCurr << "%";
         percentDonePrev = percentDoneCurr;
       }
@@ -281,7 +281,7 @@ int main(int argc, char** argv) {
         FLAGS_dest_path + "/img_" +
         to_string(frameNumber) + "_cam_" +
         file_tag + "_raw" + to_string(nBits) + ".tiff";
-      imwriteExceptionOnFail(outFilename, outImage);
+      imwriteExceptionOnFail(outFilename, outImage, tiffParams);
     }
 
     if (isDone) {
