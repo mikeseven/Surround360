@@ -187,22 +187,22 @@ if __name__ == "__main__":
       render_params["FINAL_EQR_HEIGHT"]             = 3080
     elif quality == "4k":
       render_params["SHARPENNING"]                  = 0.25
-      render_params["EQR_WIDTH"]                    = 4200
-      render_params["EQR_HEIGHT"]                   = 1024
-      render_params["FINAL_EQR_WIDTH"]              = 4096
-      render_params["FINAL_EQR_HEIGHT"]             = 2048
+      render_params["EQR_WIDTH"]                    = 3840 # UHD
+      render_params["EQR_HEIGHT"]                   = 2160
+      render_params["FINAL_EQR_WIDTH"]              = 3840
+      render_params["FINAL_EQR_HEIGHT"]             = 4320
     elif quality == "6k":
       render_params["SHARPENNING"]                  = 0.25
-      render_params["EQR_WIDTH"]                    = 6300
-      render_params["EQR_HEIGHT"]                   = 3072
+      render_params["EQR_WIDTH"]                    = 6144 # Red 6K
+      render_params["EQR_HEIGHT"]                   = 3160
       render_params["FINAL_EQR_WIDTH"]              = 6144
-      render_params["FINAL_EQR_HEIGHT"]             = 6144
+      render_params["FINAL_EQR_HEIGHT"]             = 6320
     elif quality == "8k":
       render_params["SHARPENNING"]                  = 0.25
-      render_params["EQR_WIDTH"]                    = 8400
-      render_params["EQR_HEIGHT"]                   = 4096
-      render_params["FINAL_EQR_WIDTH"]              = 8192
-      render_params["FINAL_EQR_HEIGHT"]             = 8192
+      render_params["EQR_WIDTH"]                    = 7680
+      render_params["EQR_HEIGHT"]                   = 4320
+      render_params["FINAL_EQR_WIDTH"]              = 7680
+      render_params["FINAL_EQR_HEIGHT"]             = 8640
     else:
       sys.stderr.write("Unrecognized quality setting: " + quality)
       exit(1)
