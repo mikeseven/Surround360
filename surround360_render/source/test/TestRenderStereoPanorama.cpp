@@ -189,7 +189,7 @@ void projectSphericalCamImages(
   }
 
   projectionImages = vector<Mat>(camImagePairs.size(), Mat());
-  vector<std::thread> threads;
+  /*vector<std::thread> threads;
   for (int camIdx = 0; camIdx < camImagePairs.size(); ++camIdx) {
     threads.push_back(std::thread(
       projectCamImageToSphericalThread,
@@ -202,7 +202,18 @@ void projectSphericalCamImages(
       &projectionImages[camIdx]
     ));
   }
-  for (std::thread& t : threads) { t.join(); }
+  for (std::thread& t : threads) { t.join(); }*/
+  //[mbs]
+  for (int camIdx = 0; camIdx < camImagePairs.size(); ++camIdx) {
+      projectCamImageToSphericalThread(
+		  brightnessAdjustments[camIdx],
+		  &intrinsic,
+		  &distCoeffs,
+		  &camModels[camIdx],
+		  &sideCamTransforms[camIdx],
+		  &camImages[camIdx],
+		  &projectionImages[camIdx]);
+  }
 
   if (FLAGS_save_debug_images) {
     for (int camIdx = 0; camIdx < camImagePairs.size(); ++camIdx) {
@@ -336,7 +347,7 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
   // setup paralllel optical flow
   double startOpticalFlowTime = getCurrTimeSec();
   vector<NovelViewGenerator*> novelViewGenerators(projectionImages.size());
-  vector<std::thread> threads;
+  /*vector<std::thread> threads;
   for (int leftIdx = 0; leftIdx < projectionImages.size(); ++leftIdx) {
     const int rightIdx = (leftIdx + 1) % projectionImages.size();
     novelViewGenerators[leftIdx] =
@@ -350,7 +361,21 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
       novelViewGenerators[leftIdx]
     ));
   }
-  for (std::thread& t : threads) { t.join(); }
+  for (std::thread& t : threads) { t.join(); }*/
+
+  //[mbs]
+  parallel_for_<int>(0,projectionImages.size(),[&](int leftIdx) {
+     const int rightIdx = (leftIdx + 1) % projectionImages.size();
+     novelViewGenerators[leftIdx] =
+        new NovelViewGeneratorAsymmetricFlow(FLAGS_side_flow_alg);
+     prepareNovelViewGeneratorThread(
+        overlapImageWidth,
+        leftIdx,
+        &projectionImages[leftIdx],
+        &projectionImages[rightIdx],
+        novelViewGenerators[leftIdx]
+      );
+  },1);
 
   opticalFlowRuntime = getCurrTimeSec() - startOpticalFlowTime;
 
@@ -371,7 +396,7 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
   // panorama. we do this so it can be parallelized.
   vector<Mat> panoChunksL(projectionImages.size(), Mat());
   vector<Mat> panoChunksR(projectionImages.size(), Mat());
-  vector<std::thread> panoThreads;
+  /*vector<std::thread> panoThreads;
   for (int leftIdx = 0; leftIdx < projectionImages.size(); ++leftIdx) {
     panoThreads.push_back(std::thread(
       renderStereoPanoramaChunksThread,
@@ -387,7 +412,23 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
       &panoChunksR[leftIdx]
     ));
   }
-  for (std::thread& t : panoThreads) { t.join(); }
+  for (std::thread& t : panoThreads) { t.join(); }*/
+
+  //[mbs]
+  parallel_for_<int>(0,projectionImages.size(),[&](int leftIdx) {
+      renderStereoPanoramaChunksThread(
+         leftIdx,
+         numCams,
+         camImageWidth,
+         camImageHeight,
+         numNovelViews,
+         fovHorizontalRadians,
+         vergeAtInfinitySlabDisplacement,
+         novelViewGenerators[leftIdx],
+         &panoChunksL[leftIdx],
+         &panoChunksR[leftIdx]
+      );
+  },1);
 
   novelViewRuntime = getCurrTimeSec() - startNovelViewTime;
 

@@ -15,7 +15,6 @@
 
 #include "CameraMetadata.h"
 #include "MathUtil.h"
-#include "MikeUtil.h"
 
 namespace surround360 {
 namespace warper {
@@ -232,7 +231,7 @@ Mat sideFisheyeToSpherical(
     eqrImage,
     warpMat,
     Mat(),
-    CV_INTER_LANCZOS4, //[mbs]CV_INTER_CUBIC,
+    CV_INTER_CUBIC,
     BORDER_CONSTANT,
     Scalar(0, 0, 0, 0));
   return eqrImage;

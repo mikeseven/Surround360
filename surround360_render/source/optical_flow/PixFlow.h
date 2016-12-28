@@ -17,6 +17,7 @@
 #include "OpticalFlowInterface.h"
 #include "OpticalFlowVisualization.h"
 #include "CvUtil.h"
+#include "MikeUtil.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>
@@ -34,9 +35,9 @@ template <
 >
 struct PixFlow : public OpticalFlowInterface {
 
-  static constexpr int kPyrMinImageSize               = 24;
+  static constexpr int kPyrMinImageSize               = 8;//24;
   static constexpr int kPyrMaxLevels                  = 1000;
-  static constexpr float kGradEpsilon                 = 0.001f; // for finite differences
+  static constexpr float kGradEpsilon                 = 0.0001f;//0.001f; // for finite differences
   static constexpr float kUpdateAlphaThreshold        = 0.9f;   // pixels with alpha below this aren't updated by proposals
   static constexpr int kMedianBlurSize                = 5;      // medianBlur max size is 5 pixels for CV_32FC2
   static constexpr int kPreBlurKernelWidth            = 5;
@@ -107,15 +108,18 @@ struct PixFlow : public OpticalFlowInterface {
       resize(prevI1BGRA, prevI1BGRADownscaled, downscaleSize, 0, 0, CV_INTER_CUBIC);
 
       // do motion detection vs. previous frame's images
-      for (int y = 0; y < rgba0byteDownscaled.rows; ++y) {
-        for (int x = 0; x < rgba0byteDownscaled.cols; ++x) {
+	  parallel_for_<int>(0,rgba0byteDownscaled.rows,0,rgba0byteDownscaled.cols,
+		[&](int x, int y) {
+      //for (int y = 0; y < rgba0byteDownscaled.rows; ++y) {
+         //for (int x = 0; x < rgba0byteDownscaled.cols; ++x) {
           motion.at<float>(y, x) =
             (fabs(rgba1byteDownscaled.at<Vec4b>(y, x)[0] - prevI1BGRADownscaled.at<Vec4b>(y, x)[0]) +
              fabs(rgba1byteDownscaled.at<Vec4b>(y, x)[1] - prevI1BGRADownscaled.at<Vec4b>(y, x)[1]) +
              fabs(rgba1byteDownscaled.at<Vec4b>(y, x)[2] - prevI1BGRADownscaled.at<Vec4b>(y, x)[2])) / (255.0f * 3.0f);
-        }
-      }
-    }
+         //}
+      //}
+    });
+   }
 
     // convert to various color spaces
     Mat I0Grey, I1Grey, I0, I1, alpha0, alpha1;
@@ -385,7 +389,7 @@ struct PixFlow : public OpticalFlowInterface {
     const cv::Size imgSize = I0.size();
 
     // sweep from top/left
-    for (int y = 0; y < imgSize.height; ++y) {
+   for (int y = 0; y < imgSize.height; ++y) {
       for (int x = 0; x < imgSize.width; ++x) {
         if (alpha0.at<float>(y, x) > kUpdateAlphaThreshold && alpha1.at<float>(y, x) > kUpdateAlphaThreshold) {
           float currErr = errorFunction(I0, I1, alpha0, alpha1, I0x, I0y, I1x, I1y, x, y, flow, blurredFlow, flow.at<Point2f>(y, x));

@@ -43,13 +43,13 @@ static OpticalFlowInterface* makeOpticalFlowByName(const string flowAlgName) {
 
   if (flowAlgName == "pixflow_search_20") {
     static const float kPyrScaleFactor                  = 0.9f;
-    static const float kSmoothnessCoef                  = 0.001f;
-    static const float kVerticalRegularizationCoef      = 0.01f;
-    static const float kHorizontalRegularizationCoef    = 0.01f;
+    static const float kSmoothnessCoef                  = 0.001f;//0.001f; // smooth blending in overlap, lower more blending
+    static const float kVerticalRegularizationCoef      = 0.1f;//0.01f; //
+    static const float kHorizontalRegularizationCoef    = 0.1f;//0.01f;
     static const float kGradientStepSize                = 0.5f;
     static const float kDownscaleFactor                 = 0.5f;
     static const float kDirectionalRegularizationCoef   = 0.0f;
-    return new PixFlow<false, 20>(
+    return new PixFlow<false, 100/*20*/>(
       kPyrScaleFactor,
       kSmoothnessCoef,
       kVerticalRegularizationCoef,

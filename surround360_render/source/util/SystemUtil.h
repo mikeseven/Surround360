@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "VrCamException.h"
+#include "MikeUtil.h"
 
 namespace surround360 {
 namespace util {

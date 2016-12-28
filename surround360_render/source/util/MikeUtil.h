@@ -10,7 +10,7 @@
 
 namespace surround360 {
 // TBB setup
-static constexpr int TBB_GRAIN_Y = 64;
+static constexpr int TBB_GRAIN_Y = 256;
 
 enum Parallel
 {
@@ -24,22 +24,23 @@ enum Parallel
 /**
  * 1D parallel for
  */
-template<typename T>
-inline void parallel_for_(T x_min, T x_max,
+template<typename T = int>
+inline void parallel_for_(const T x_min, const T x_max,
                           std::function<void(T)> func,
+                          const int grain_x = TBB_GRAIN_Y,
                           Parallel parr = Parallel::TBB)
 {
   switch (parr) {
     case Parallel::TBB:
-      tbb::parallel_for(tbb::blocked_range<T>(x_min, x_max, TBB_GRAIN_Y),
+      tbb::parallel_for(tbb::blocked_range<T>(x_min, x_max, grain_x),
                         [&func](const tbb::blocked_range<T> &r) {
-                          for (auto x = r.begin(); x != r.end(); ++x)
+                          for (T x = r.begin(); x != r.end(); ++x)
                             func(x);
                         });
       break;
 #ifdef _OPENMP
     case Parallel::OpenMP:
-  #pragma omp for schedule(dynamic,TBB_GRAIN_Y)
+  #pragma omp for schedule(dynamic,grain_x)
       for (T x = x_min; x<x_max; ++x) {
         func(x);
       }
@@ -55,19 +56,20 @@ inline void parallel_for_(T x_min, T x_max,
 /**
  * 2D parallel for
  */
-template<typename T>
-inline void parallel_for_(T outer_min, T outer_max,
-                          T inner_min, T inner_max,
+template<typename T = int>
+inline void parallel_for_(const T outer_min, const T outer_max,
+                          const T inner_min, const T inner_max,
                           std::function<void(T, T)> func,
+                          const int grain_outer = TBB_GRAIN_Y, const int grain_inner = TBB_GRAIN_Y,
                           Parallel parr = Parallel::TBB)
 {
   switch (parr) {
     case Parallel::TBB:
       tbb::parallel_for(
-        tbb::blocked_range2d<T>(outer_min, outer_max, TBB_GRAIN_Y, inner_min, inner_max, TBB_GRAIN_Y * 2),
+        tbb::blocked_range2d<T>(outer_min, outer_max, grain_outer, inner_min, inner_max, grain_inner),
         [&func](const tbb::blocked_range2d<T> &r) {
-          for (auto y = r.rows().begin(); y != r.rows().end(); ++y) {
-            for (auto x = r.cols().begin(); x != r.cols().end(); ++x) {
+          for (T y = r.rows().begin(); y != r.rows().end(); ++y) {
+            for (T x = r.cols().begin(); x != r.cols().end(); ++x) {
               func(x, y);
             }
           }
@@ -75,7 +77,7 @@ inline void parallel_for_(T outer_min, T outer_max,
       break;
 #ifdef _OPENMP
     case Parallel::OpenMP:
-  #pragma omp for collapse(2) schedule(dynamic,TBB_GRAIN_Y)
+  #pragma omp for collapse(2) schedule(dynamic, grain_outer)
       for (T y = outer_min; y <outer_max; ++y) {
         for (T x = inner_min; x <inner_max; ++x) {
           func(x, y);
