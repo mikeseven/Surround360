@@ -405,3 +405,21 @@ TARGET_LINK_LIBRARIES(
   ${OpenCV_LIBS}
   ${PLATFORM_SPECIFIC_LIBS}
 )
+
+### TestRenderStereoMovie ###
+
+ADD_EXECUTABLE(
+  TestRenderStereoMovie
+  source/test/TestRenderStereoMovie.cpp
+)
+TARGET_COMPILE_FEATURES(TestRenderStereoMovie PRIVATE cxx_range_for)
+TARGET_LINK_LIBRARIES(
+  TestRenderStereoMovie
+  LibVrCamera
+  LibJSON
+  glog
+  gflags
+  ${OpenCV_LIBS}
+  ${PLATFORM_SPECIFIC_LIBS}
+)
+
