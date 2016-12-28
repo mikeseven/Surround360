@@ -48,7 +48,8 @@ class CameraIsp {
   cv::Point3f blackLevel;
   cv::Point3f clampMin;
   cv::Point3f clampMax;
-  vector<cv::Point3f> vignetteRollOff;
+  vector<cv::Point3f> vignetteRollOffH;
+  vector<cv::Point3f> vignetteRollOffV;
 
   int stuckPixelThreshold;
   float stuckPixelDarknessThreshold;
@@ -63,7 +64,9 @@ class CameraIsp {
   cv::Point3f lowKeyBoost;
   cv::Point3f highKeyBoost;
   float contrast;
-  cv::Point3f sharpenning;
+  cv::Point3f sharpening;
+  float sharpeningSupport;
+  float noiseCore;
   Mat rawImage;
   bool redBayerPixel[2][2];
   bool greenBayerPixel[2][2];
@@ -72,13 +75,13 @@ class CameraIsp {
   DemosaicFilter demosaicFilter;
   int resize;
   vector<Vec3f> toneCurveLut;
-  shared_ptr<BezierCurve<float, cv::Point3f > > vignetteCurve;
+  BezierCurve<float, Vec3f> vignetteCurveH;
+  BezierCurve<float, Vec3f> vignetteCurveV;
 
   const int outputBpp;
   const int width;
   const int height;
-  const float halfWidth;
-  const float halfHeight;
+  const int maxDimension;
   const float maxD; // max diagonal distance
   const float sqrtMaxD; // max diagonal distance
 
@@ -225,7 +228,7 @@ class CameraIsp {
         }
       }
     }
-    const int w = 2;
+    const int w = 4;
     const int diameter = 2 * w + 1;
     const int diameterSquared = square(diameter);
 
@@ -240,8 +243,7 @@ class CameraIsp {
             hCount += (dH.at<float>(il, jk) <= dV.at<float>(il, jk));
           }
         }
-        const float alpha = float(hCount) / diameterSquared;
-        green.at<float>(i, j) = lerp(gV.at<float>(i, j), gH.at<float>(i, j), alpha);
+        green.at<float>(i, j) = hCount < diameterSquared / 2 ? gV.at<float>(i, j) : gH.at<float>(i, j);
       }
     }
 
@@ -252,7 +254,7 @@ class CameraIsp {
 
     for (int i = 0; i < height; ++i) {
       for (int j = 0; j < width; ++j) {
-        pGreen.at<float>(i, j) = logf(1.0f + green.at<float>(i, j));
+        pGreen.at<float>(i, j) = green.at<float>(i, j);
         if (redPixel(i, j)) {
           redMinusGreen.at<float>(i, j) = red.at<float>(i, j) - pGreen.at<float>(i, j);
         } else if (!greenPixel(i, j)) {
@@ -391,7 +393,7 @@ class CameraIsp {
   // Build the composite tone curve
   void buildToneCurveLut() {
     toneCurveLut.clear();
-
+    const float range = float((1 << outputBpp) - 1);
     const float dx = 1.0f / float(kToneCurveLutSize - 1);
 
     // Contrast angle constants
@@ -413,9 +415,9 @@ class CameraIsp {
       b = lowKey(lowKeyBoost.z, b) + highKey(highKeyBoost.z, b);
 
       // Then contrast
-      r = clamp(slope * r + bias, 0.0f, 1.0f);
-      g = clamp(slope * g + bias, 0.0f, 1.0f);
-      b = clamp(slope * b + bias, 0.0f, 1.0f);
+      r = clamp((slope * r + bias) * range, 0.0f, range);
+      g = clamp((slope * g + bias) * range, 0.0f, range);
+      b = clamp((slope * b + bias) * range, 0.0f, range);
 
       // Place it in the table.
       toneCurveLut.push_back(Vec3f(r, g, b));
@@ -429,8 +431,7 @@ class CameraIsp {
       outputBpp(outputBpp),
       width(0),
       height(0),
-      halfWidth(0),
-      halfHeight(0),
+      maxDimension(0),
       maxD(0),
       sqrtMaxD(0) {
 
@@ -447,13 +448,15 @@ class CameraIsp {
     stuckPixelThreshold = 0;
     stuckPixelDarknessThreshold = 0;
     stuckPixelRadius = 0;
-    vignetteRollOff.push_back(Point3f(0.0f, 0.0f, 0.0f));
-    vignetteRollOff.push_back(Point3f(1.0f, 1.0f, 1.0f));
+    vignetteRollOffH.push_back(Vec3f(1.0f, 1.0f, 1.0f));
+    vignetteRollOffV.push_back(Vec3f(1.0f, 1.0f, 1.0f));
     whiteBalanceGain = Point3f(1.0f, 1.0f, 1.0f);
     ccm = Mat::eye(3, 3, CV_32F);
     saturation = 1.0f;
     contrast = 1.0f;
-    sharpenning = Point3f(0.0f, 0.0f, 0.0f);
+    sharpening = Point3f(0.0f, 0.0f, 0.0f);
+    sharpeningSupport = sharpeningSupport = 10.0f / 2048.0f; // Approx filter support is 10 pixels
+    noiseCore = 1000.0f;
     gamma = Point3f(1.0f, 1.0f, 1.0f);
     lowKeyBoost = Point3f(0.0f, 0.0f, 0.0f);
     highKeyBoost = Point3f(0.0f, 0.0f, 0.0f);
@@ -512,12 +515,17 @@ class CameraIsp {
         VLOG(1) << "Using default stuckPixelRadius = " << stuckPixelRadius << endl;
       }
 
-      if (config["CameraIsp"].HasKey("vignetteRollOff")) {
-        vignetteRollOff = getCoordList(config, "CameraIsp", "vignetteRollOff");
+      if (config["CameraIsp"].HasKey("vignetteRollOffH")) {
+        vignetteRollOffH = getCoordList(config, "CameraIsp", "vignetteRollOffH");
       } else {
-        VLOG(1) << "Using default vignetteRollOff = " << vignetteRollOff << endl;
+        VLOG(1) << "Using default vignetteRollOffH = " << vignetteRollOffH << endl;
       }
 
+      if (config["CameraIsp"].HasKey("vignetteRollOffV")) {
+        vignetteRollOffV = getCoordList(config, "CameraIsp", "vignetteRollOffV");
+      } else {
+        VLOG(1) << "Using default vignetteRollOffV = " << vignetteRollOffV << endl;
+      }
 
       if (config["CameraIsp"].HasKey("whiteBalanceGain")) {
         whiteBalanceGain = getVector(config, "CameraIsp", "whiteBalanceGain");
@@ -569,10 +577,22 @@ class CameraIsp {
         VLOG(1) << "Using default constrast = " << contrast << endl;
       }
 
-      if (config["CameraIsp"].HasKey("sharpenning")) {
-        sharpenning = getVector(config, "CameraIsp", "sharpenning");
+      if (config["CameraIsp"].HasKey("sharpening")) {
+        sharpening = getVector(config, "CameraIsp", "sharpening");
       } else {
-        VLOG(1) << "Using default sharpenning = " << sharpenning << endl;
+        VLOG(1) << "Using default sharpening = " << sharpening << endl;
+      }
+
+      if (config["CameraIsp"].HasKey("sharpeningSupport")) {
+        sharpeningSupport = getDouble(config, "CameraIsp", "sharpeningSupport");
+      } else {
+        VLOG(1) << "Using default sharpening support = " << sharpeningSupport << endl;
+      }
+
+      if (config["CameraIsp"].HasKey("noiseCore")) {
+        noiseCore = getDouble(config, "CameraIsp", "noiseCore");
+      } else {
+        VLOG(1) << "Using default noise core = " << noiseCore << endl;
       }
 
       if (config["CameraIsp"].HasKey("bayerPattern")) {
@@ -636,12 +656,14 @@ class CameraIsp {
       greenBayerPixel[1][1] = false;
     }
 
-    vignetteCurve = shared_ptr<BezierCurve<float, Point3f > > (
-      new BezierCurve<float, Point3f >());
+    vignetteCurveH.clearPoints();
+    for (auto p : vignetteRollOffH) {
+      vignetteCurveH.addPoint(p);
+    }
 
-    for (int i = 0; i < vignetteRollOff.size(); ++i) {
-      Point3f v(vignetteRollOff[i]);
-      vignetteCurve->addPoint(v);
+    vignetteCurveV.clearPoints();
+    for (auto p : vignetteRollOffV) {
+      vignetteCurveV.addPoint(p);
     }
 
     // If saturation is unit this satMat will be the identity matrix.
@@ -655,6 +677,11 @@ class CameraIsp {
 
     transpose(ccm, compositeCCM);
     compositeCCM *= satMat;
+
+    // The stage following the CCM maps tone curve lut to 12bits so we
+    // scale the pixel by the lut size here once instead of doing it
+    // for every pixel.
+    compositeCCM *= float(kToneCurveLutSize - 1);
 
     // Build the tone curve table
     buildToneCurveLut();
@@ -671,6 +698,18 @@ class CameraIsp {
 
   inline bool bluePixel(const int i, const int j) const {
     return !(greenBayerPixel[i % 2][j % 2] || redBayerPixel[i % 2][j % 2]);
+  }
+
+  inline int getChannelNumber(const int i, const int j) {
+    return redPixel(i, j) ? 0 : greenPixel(i, j) ? 1 : 2;
+  }
+
+  inline Vec3f curveHAtPixel(const int x) {
+    return vignetteCurveH(float(x) / float(maxDimension));
+  }
+
+  inline Vec3f curveVAtPixel(const int x) {
+    return vignetteCurveV(float(x) / float(maxDimension));
   }
 
   void dumpConfigFile(const string configFileName) {
@@ -709,16 +748,30 @@ class CameraIsp {
           << clampMax.x << ", "
           << clampMax.y << ", "
           << clampMax.z << "],\n";
-      ofs << "        \"vignetteRollOff\" : [";
-      for (int i = 0; i < vignetteRollOff.size(); ++i) {
+      ofs << "        \"vignetteRollOffH\" :  [";
+      for (int i = 0; i < vignetteRollOffH.size(); ++i) {
         if (i > 0) {
-          ofs << "                             ";
+          ofs << "                               ";
         }
         ofs << "["
-            << vignetteRollOff[i].x << ", "
-            << vignetteRollOff[i].y << ", "
-            << vignetteRollOff[i].z << "]";
-        if (i < vignetteRollOff.size()-1) {
+            << vignetteRollOffH[i].x << ", "
+            << vignetteRollOffH[i].y << ", "
+            << vignetteRollOffH[i].z << "]";
+        if (i < vignetteRollOffH.size() - 1) {
+          ofs << ",\n";
+        }
+      }
+      ofs << "],\n";
+      ofs << "        \"vignetteRollOffV\" :  [";
+      for (int i = 0; i < vignetteRollOffV.size(); ++i) {
+        if (i > 0) {
+          ofs << "                               ";
+        }
+        ofs << "["
+            << vignetteRollOffV[i].x << ", "
+            << vignetteRollOffV[i].y << ", "
+            << vignetteRollOffV[i].z << "]";
+        if (i < vignetteRollOffV.size() - 1) {
           ofs << ",\n";
         }
       }
@@ -746,10 +799,10 @@ class CameraIsp {
           << ccm.at<float>(2,2) << "]],\n";
       ofs.precision(3);
       ofs << fixed;
-      ofs << "        \"sharpenning\" : ["
-          << sharpenning.x << ", "
-          << sharpenning.y << ", "
-          << sharpenning.z << "],\n";
+      ofs << "        \"sharpening\" : ["
+          << sharpening.x << ", "
+          << sharpening.y << ", "
+          << sharpening.z << "],\n";
       ofs << "        \"saturation\" : " << saturation << ",\n";
       ofs << "        \"contrast\" : " << contrast << ",\n";
       ofs << "        \"gamma\" : ["
@@ -768,9 +821,7 @@ class CameraIsp {
   virtual void loadImage(const Mat& inputImage) {
     *const_cast<int*>(&width) = inputImage.cols / resize;
     *const_cast<int*>(&height) = inputImage.rows / resize;
-
-    *const_cast<float*>(&halfWidth) = width / 2.0f;
-    *const_cast<float*>(&halfHeight) = height / 2.0f;
+    *const_cast<int*>(&maxDimension) = std::max(width, height);
     *const_cast<float*>(&maxD) = square(width) + square(width);
     *const_cast<float*>(&sqrtMaxD) = sqrt(maxD);
 
@@ -778,13 +829,11 @@ class CameraIsp {
 
     // Copy and convert to float
     uint8_t depth = inputImage.type() & CV_MAT_DEPTH_MASK;
+    // Match the input bits per pixel overriding what is in the config file.
     if (depth == CV_8U) {
       bitsPerPixel = 8;
       resizeInput<uint8_t>(inputImage);
     } else if (depth == CV_16U) {
-      // Actual bits per pixel could be 10, 12, or upto 16 so we have
-      // to rely on the specification in the isp config file since
-      // it's camera/sensor dependent.
       bitsPerPixel = 16;
       maxPixelValue = (1 << bitsPerPixel) - 1;
 
@@ -792,6 +841,14 @@ class CameraIsp {
     } else {
       throw VrCamException("input is larger that 16 bits per pixel");
     }
+  }
+
+  int getBitsPerPixel() const {
+    return bitsPerPixel;
+  }
+
+  void setBitsPerPixel(const int bitsPerPixel)  {
+    this->bitsPerPixel = bitsPerPixel;
   }
 
   int getMaxPixelValue() const {
@@ -844,12 +901,32 @@ class CameraIsp {
     return clampMax;
   }
 
+  void setVignetteRollOffH(const vector<Point3f>& vignetteRollOffH) {
+    this->vignetteRollOffH = vignetteRollOffH;
+  }
+
+  vector<Point3f> getVignetteRollOffH() const {
+    return vignetteRollOffH;
+  }
+
+  void setVignetteRollOffV(const vector<Point3f>& vignetteRollOffV) {
+    this->vignetteRollOffV = vignetteRollOffV;
+  }
+
+  vector<Point3f> getVignetteRollOffV() const {
+    return vignetteRollOffV;
+  }
+
   void setCCM(const Mat& ccm) {
     this->ccm = ccm;
   }
 
   Mat getCCM() const {
     return ccm;
+  }
+
+  uint32_t getFilters() const {
+    return filters;
   }
 
   void setWhiteBalance(const Point3f whiteBalanceGain ) {
@@ -1047,17 +1124,11 @@ class CameraIsp {
 
   void antiVignette() {
     for (int i = 0; i < height; ++i) {
-      const Point3f vV = (*vignetteCurve)(std::abs(i - halfHeight) / halfHeight);
+      const Vec3f vV = curveVAtPixel(i);
       for (int j = 0; j < width; j++) {
-        const Point3f vH = (*vignetteCurve)(std::abs(j - halfWidth)  / halfWidth);
-
-        if (redPixel(i, j)) {
-          rawImage.at<float>(i, j) = rawImage.at<float>(i, j) * vH.x * vV.x;
-        } else if (greenPixel(i, j)) {
-          rawImage.at<float>(i, j) = rawImage.at<float>(i, j) * vH.y * vV.y;
-        } else {
-          rawImage.at<float>(i, j) = rawImage.at<float>(i, j) * vH.z * vV.z;
-        }
+        const Vec3f vH = curveHAtPixel(j);
+        int ch = getChannelNumber(i, j);
+        rawImage.at<float>(i, j) *= vH[ch] * vV[ch];
       }
     }
   }
@@ -1125,40 +1196,41 @@ class CameraIsp {
     const float kToneCurveLutRange = kToneCurveLutSize - 1;
     for (int i = 0; i < height; ++i) {
       for (int j = 0; j < width; j++) {
-        Vec3f v;
-        v[0] =
+        Vec3f p =  demosaicedImage.at<Vec3f>(i, j);
+        Vec3f v(
           toneCurveLut[
               clamp(
-                  compositeCCM.at<float>(0,0) * demosaicedImage.at<Vec3f>(i, j)[0] +
-                  compositeCCM.at<float>(0,1) * demosaicedImage.at<Vec3f>(i, j)[1] +
-                  compositeCCM.at<float>(0,2) * demosaicedImage.at<Vec3f>(i, j)[2], 0.0f, 1.0f) * kToneCurveLutRange][0];
-        v[1] =
+                  compositeCCM.at<float>(0,0) * p[0] +
+                  compositeCCM.at<float>(0,1) * p[1] +
+                  compositeCCM.at<float>(0,2) * p[2], 0.0f, kToneCurveLutRange)][0],
           toneCurveLut[
               clamp(
-                  compositeCCM.at<float>(1,0) * demosaicedImage.at<Vec3f>(i, j)[0] +
-                  compositeCCM.at<float>(1,1) * demosaicedImage.at<Vec3f>(i, j)[1] +
-                  compositeCCM.at<float>(1,2) * demosaicedImage.at<Vec3f>(i, j)[2], 0.0f, 1.0f) * kToneCurveLutRange][1];
-        v[2] =
+                  compositeCCM.at<float>(1,0) * p[0] +
+                  compositeCCM.at<float>(1,1) * p[1] +
+                  compositeCCM.at<float>(1,2) * p[2], 0.0f, kToneCurveLutRange)][1],
           toneCurveLut[
               clamp(
-                  compositeCCM.at<float>(2,0) * demosaicedImage.at<Vec3f>(i, j)[0] +
-                  compositeCCM.at<float>(2,1) * demosaicedImage.at<Vec3f>(i, j)[1] +
-                  compositeCCM.at<float>(2,2) * demosaicedImage.at<Vec3f>(i, j)[2], 0.0f, 1.0f) * kToneCurveLutRange][2];
-
+                  compositeCCM.at<float>(2,0) * p[0] +
+                  compositeCCM.at<float>(2,1) * p[1] +
+                  compositeCCM.at<float>(2,2) * p[2], 0.0f, kToneCurveLutRange)][2]);
         demosaicedImage.at<Vec3f>(i, j) = v;
       }
     }
   }
 
   void sharpen() {
-    Mat lowPass(height, width, CV_32FC3);
-    const WrapBoundary<float> wrapB;
-    iirLowPass<WrapBoundary<float>, WrapBoundary<float>, Vec3f>(demosaicedImage, 0.25f, lowPass, wrapB, wrapB, 1.0f);
-    sharpenWithIirLowPass<Vec3f>(demosaicedImage,
-                          lowPass,
-                          1.0f + sharpenning.x,
-                          1.0f + sharpenning.y,
-                          1.0f + sharpenning.z);
+    if (sharpening.x != 0.0 && sharpening.y != 0.0 && sharpening.z != 0.0) {
+      Mat lowPass(height, width, CV_32FC3);
+      const WrapBoundary<float> wrapB;
+      iirLowPass<WrapBoundary<float>, WrapBoundary<float>, Vec3f>(demosaicedImage, sharpeningSupport, lowPass, wrapB, wrapB, 1.0f);
+      sharpenWithIirLowPass<Vec3f>(demosaicedImage,
+          lowPass,
+          1.0f + sharpening.x,
+          1.0f + sharpening.y,
+          1.0f + sharpening.z,
+          noiseCore,
+          (1 << outputBpp) - 1.0f);
+    }
   }
 
  protected:
@@ -1188,10 +1260,6 @@ class CameraIsp {
     for (int i = 0; i < height; ++i) {
       for (int j = 0; j < width; j++) {
         Vec3f& dp = demosaicedImage.at<Vec3f>(i, j);
-
-        dp[0] = clamp(dp[0] * range, 0.0f, range);
-        dp[1] = clamp(dp[1] * range, 0.0f, range);
-        dp[2] = clamp(dp[2] * range, 0.0f, range);
 
         if (outputBpp == 8) {
           outputImage.at<Vec3b>(i, j)[c0] = dp[0];
