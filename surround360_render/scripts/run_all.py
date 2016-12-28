@@ -93,6 +93,8 @@ python {SURROUND360_RENDER_DIR}/scripts/batch_process_video.py
 --src_intrinsic_param_file {SRC_INSTRINSIC_PARAM_FILE}
 --rectify_file {RECTIFY_FILE}
 --rig_json_file {RIG_JSON_FILE}
+--interpupilary_dist {INTERPUPILLARY_DIST}
+--zero_parallax_dist {ZERO_PARALLAX_DIST}
 {FLAGS_RENDER_EXTRA}
 """
 
@@ -168,6 +170,9 @@ def parse_args():
   parser.add_argument('--rectify_file',               metavar='Rectification File', help='rectification file [or NONE]', required=False, default=create_default_path(rectify_file, "NONE"), **file_chooser)
   parser.add_argument('--rig_json_file',              metavar='Rig Geometry File', help='json file with rig geometry info', required=False, default=create_default_path(rig_json_file, ""), **file_chooser)
   parser.add_argument('--verbose',                    help='increase output verbosity', action='store_true')
+  parser.add_argument('--interpupilary_dist',         metavar='Inter-pupillary distance', help='0 = no stereo', required=False, default='6.4')
+  parser.add_argument('--zero_parallax_dist',         metavar='Zero parallax distance', help='large number eg 10000', required=False, default='10000')
+  parser.add_argument('--sharpenning',                metavar='Post-processing sharpenning', help='0.0 to 1.0 amount of sharpenning, 0 = no sharpenning', required=False, default='0.25')
 
   return vars(parser.parse_args())
 
@@ -261,6 +266,9 @@ if __name__ == "__main__":
   rectify_file              = args["rectify_file"]
   rig_json_file             = args["rig_json_file"]
   verbose                   = args["verbose"]
+  interpupilary_dist        = args["interpupilary_dist"]
+  zero_parallax_dist        = args["zero_parallax_dist"]
+  sharpenning               = args["sharpenning"]
 
   print "\n--------" + time.strftime(" %a %b %d %Y %H:%M:%S %Z ") + "-------\n"
 
@@ -445,7 +453,10 @@ if __name__ == "__main__":
       "RECTIFY_FILE": rectify_file,
       "RIG_JSON_FILE": rig_json_file,
       "FLAGS_RENDER_EXTRA": render_extra_params,
-    }
+      "INTERPUPILLARY_DIST": interpupilary_dist,
+      "ZERO_PARALLAX_DIST": zero_parallax_dist,
+      "SHARPENNING": sharpenning,
+   }
     render_command = RENDER_COMMAND_TEMPLATE.replace("\n", " ").format(**render_params)
     run_step("render", render_command, verbose, dryrun, file_runtimes, num_steps)
 

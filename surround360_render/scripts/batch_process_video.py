@@ -49,9 +49,9 @@ RENDER_COMMAND_TEMPLATE = """
 --eqr_height {EQR_HEIGHT}
 --final_eqr_width {FINAL_EQR_WIDTH}
 --final_eqr_height {FINAL_EQR_HEIGHT}
---interpupilary_dist 6.4
---zero_parallax_dist 10000
 --sharpenning {SHARPENNING}
+--interpupilary_dist {INTERPUPILLARY_DIST}
+--zero_parallax_dist {ZERO_PARALLAX_DIST}
 {EXTRA_FLAGS}
 """
 
@@ -86,6 +86,9 @@ if __name__ == "__main__":
   parser.add_argument('--src_intrinsic_param_file', help='path to camera instrinsic param file', required=True)
   parser.add_argument('--flow_alg', help='flow algorithm e.g., pixflow_low, pixflow_search_20', required=True)
   parser.add_argument('--verbose', dest='verbose', action='store_true')
+  parser.add_argument('--interpupilary_dist', help='0 = no stereo', required=False, default='6.4')
+  parser.add_argument('--zero_parallax_dist', help='large number eg 10000', required=False, default='10000')
+  parser.add_argument('--sharpenning', help='amount of sharpening, between 0 and 1, 0 = no sharpening', required=False, default='0.25')
   parser.set_defaults(save_debug_images=False)
   parser.set_defaults(enable_top=False)
   parser.set_defaults(enable_bottom=False)
@@ -115,6 +118,9 @@ if __name__ == "__main__":
   src_intrinsic_param_file  = args["src_intrinsic_param_file"]
   flow_alg                  = args["flow_alg"]
   verbose                   = args["verbose"]
+  interpupilary_dist        = args["interpupilary_dist"]
+  zero_parallax_dist        = args["zero_parallax_dist"]
+  sharpenning               = args["sharpenning"]
 
   start_time = timer()
   brightness_adjust_path = root_dir + "/brightness_adjust.txt"
@@ -150,6 +156,9 @@ if __name__ == "__main__":
       "SIDE_FLOW_ALGORITHM": flow_alg,
       "POLAR_FLOW_ALGORITHM": flow_alg,
       "POLEREMOVAL_FLOW_ALGORITHM": flow_alg,
+      "INTERPUPILLARY_DIST": interpupilary_dist,
+      "ZERO_PARALLAX_DIST": zero_parallax_dist,
+      "SHARPENNING": sharpenning,
       "EXTRA_FLAGS": "",
     }
 
@@ -180,25 +189,25 @@ if __name__ == "__main__":
         render_params["EXTRA_FLAGS"] += " --bottom_pole_masks_dir " + root_dir + "/pole_masks"
 
     if quality == "3k":
-      render_params["SHARPENNING"]                  = 0.25
+      #render_params["SHARPENNING"]                  = 0.25
       render_params["EQR_WIDTH"]                    = 3080
       render_params["EQR_HEIGHT"]                   = 1540
       render_params["FINAL_EQR_WIDTH"]              = 3080
       render_params["FINAL_EQR_HEIGHT"]             = 3080
     elif quality == "4k":
-      render_params["SHARPENNING"]                  = 0.25
+      #render_params["SHARPENNING"]                  = 0.25
       render_params["EQR_WIDTH"]                    = 3840 # UHD
       render_params["EQR_HEIGHT"]                   = 2160
       render_params["FINAL_EQR_WIDTH"]              = 3840
       render_params["FINAL_EQR_HEIGHT"]             = 4320
     elif quality == "6k":
-      render_params["SHARPENNING"]                  = 0.25
+      #render_params["SHARPENNING"]                  = 0.25
       render_params["EQR_WIDTH"]                    = 6144 # Red 6K
       render_params["EQR_HEIGHT"]                   = 3160
       render_params["FINAL_EQR_WIDTH"]              = 6144
       render_params["FINAL_EQR_HEIGHT"]             = 6320
     elif quality == "8k":
-      render_params["SHARPENNING"]                  = 0.25
+      #render_params["SHARPENNING"]                  = 0.25
       render_params["EQR_WIDTH"]                    = 7680
       render_params["EQR_HEIGHT"]                   = 4320
       render_params["FINAL_EQR_WIDTH"]              = 7680
