@@ -15,7 +15,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source/render)
 INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR})
 
 find_package(Qt5Core)
-find_package(Qt5GUI)
+find_package(Qt5Gui)
 find_package(Qt5Widgets)
 find_package(Qt5Concurrent)
 find_package(Qt5OpenGL)
@@ -408,18 +408,18 @@ TARGET_LINK_LIBRARIES(
 
 ### TestRenderStereoMovie ###
 
-ADD_EXECUTABLE(
-  TestRenderStereoMovie
-  source/test/TestRenderStereoMovie.cpp
-)
-TARGET_COMPILE_FEATURES(TestRenderStereoMovie PRIVATE cxx_range_for)
-TARGET_LINK_LIBRARIES(
-  TestRenderStereoMovie
-  LibVrCamera
-  LibJSON
-  glog
-  gflags
-  ${OpenCV_LIBS}
-  ${PLATFORM_SPECIFIC_LIBS}
-)
+# ADD_EXECUTABLE(
+#   TestRenderStereoMovie
+#   source/test/TestRenderStereoMovie.cpp
+# )
+# TARGET_COMPILE_FEATURES(TestRenderStereoMovie PRIVATE cxx_range_for)
+# TARGET_LINK_LIBRARIES(
+#   TestRenderStereoMovie
+#   LibVrCamera
+#   LibJSON
+#   glog
+#   gflags
+#   ${OpenCV_LIBS}
+#   ${PLATFORM_SPECIFIC_LIBS}
+# )
 
