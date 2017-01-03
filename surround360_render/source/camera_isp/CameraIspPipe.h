@@ -47,9 +47,7 @@ class CameraIspPipe : public CameraIsp {
   void loadImage(const Mat& inputImage) {
     *const_cast<int*>(&width) = inputImage.cols / resize;
     *const_cast<int*>(&height) = inputImage.rows / resize;
-
-    *const_cast<float*>(&halfWidth) = width / 2.0f;
-    *const_cast<float*>(&halfHeight) = height / 2.0f;
+    *const_cast<int*>(&maxDimension) = std::max(width, height);
     *const_cast<float*>(&maxD) = square(width) + square(width);
     *const_cast<float*>(&sqrtMaxD) = sqrt(maxD);
     this->inputImage = inputImage;
@@ -64,9 +62,7 @@ class CameraIspPipe : public CameraIsp {
   void loadImage(uint8_t* inputImageData, const int xRes, const int yRes) {
     *const_cast<int*>(&width) = xRes;
     *const_cast<int*>(&height) = yRes;
-
-    *const_cast<float*>(&halfWidth) = width / 2.0f;
-    *const_cast<float*>(&halfHeight) = height / 2.0f;
+    *const_cast<int*>(&maxDimension) = std::max(width, height);
     *const_cast<float*>(&maxD) = square(width) + square(width);
     *const_cast<float*>(&sqrtMaxD) = sqrt(maxD);
     inputBufferBp.host = reinterpret_cast<uint8_t*>(inputImageData);
@@ -98,13 +94,15 @@ class CameraIspPipe : public CameraIsp {
             &inputBufferBp, width, height, &vignetteTableHBp, &vignetteTableVBp,
             blackLevel.x, blackLevel.y, blackLevel.z, whiteBalanceGain.x, whiteBalanceGain.y, whiteBalanceGain.z,
             clampMin.x, clampMin.y, clampMin.z, clampMax.x, clampMax.y, clampMax.z,
-            sharpenning.x, sharpenning.y, sharpenning.z, &ccMatBp, &toneTableBp, swizzle, &outputBufferBp);
+            sharpening.x, sharpening.y, sharpening.z, sharpeningSupport, noiseCore,
+            &ccMatBp, &toneTableBp, swizzle, &outputBufferBp);
       } else {
         CameraIspGen8(
             &inputBufferBp, width, height, &vignetteTableHBp, &vignetteTableVBp,
             blackLevel.x, blackLevel.y, blackLevel.z, whiteBalanceGain.x, whiteBalanceGain.y, whiteBalanceGain.z,
             clampMin.x, clampMin.y, clampMin.z, clampMax.x, clampMax.y, clampMax.z,
-            sharpenning.x, sharpenning.y, sharpenning.z, &ccMatBp, &toneTableBp, swizzle, &outputBufferBp);
+            sharpening.x, sharpening.y, sharpening.z,  sharpeningSupport, noiseCore,
+            &ccMatBp, &toneTableBp, swizzle, &outputBufferBp);
       }
     } else {
       if (fast) {
@@ -112,13 +110,15 @@ class CameraIspPipe : public CameraIsp {
             &inputBufferBp, width, height, &vignetteTableHBp, &vignetteTableVBp,
             blackLevel.x, blackLevel.y, blackLevel.z, whiteBalanceGain.x, whiteBalanceGain.y, whiteBalanceGain.z,
             clampMin.x, clampMin.y, clampMin.z, clampMax.x, clampMax.y, clampMax.z,
-            sharpenning.x, sharpenning.y, sharpenning.z, &ccMatBp, &toneTableBp, swizzle, &outputBufferBp);
+            sharpening.x, sharpening.y, sharpening.z,  sharpeningSupport, noiseCore,
+            &ccMatBp, &toneTableBp, swizzle, &outputBufferBp);
       } else {
         CameraIspGen16(
             &inputBufferBp, width, height, &vignetteTableHBp, &vignetteTableVBp,
             blackLevel.x, blackLevel.y, blackLevel.z, whiteBalanceGain.x, whiteBalanceGain.y, whiteBalanceGain.z,
             clampMin.x, clampMin.y, clampMin.z, clampMax.x, clampMax.y, clampMax.z,
-            sharpenning.x, sharpenning.y, sharpenning.z, &ccMatBp, &toneTableBp, swizzle, &outputBufferBp);
+            sharpening.x, sharpening.y, sharpening.z,  sharpeningSupport, noiseCore,
+            &ccMatBp, &toneTableBp, swizzle, &outputBufferBp);
       }
     }
   }
@@ -139,20 +139,13 @@ class CameraIspPipe : public CameraIsp {
     outputBufferBp.stride[1] = 3 * width;
     outputBufferBp.stride[2] = 1;
 
-    // The stage following the CCM maps tone curve lut to 256 so we
-    // scale the pixel by the lut size here once instead of doing it
-    // for every pixel.
-    compositeCCM *= float(kToneCurveLutSize);
-
     toneCurveTable = Mat(kToneCurveLutSize, 3, outputBpp == 8 ? CV_8U : CV_16U);
 
     // Convert the tone curve to a 8 bit output table
-    const float range = float((1 << outputBpp) - 1);
-
     for (int i = 0; i < kToneCurveLutSize; ++i) {
-      const int r = int(clamp(toneCurveLut[i][0] * range, 0.0f, range));
-      const int g = int(clamp(toneCurveLut[i][1] * range, 0.0f, range));
-      const int b = int(clamp(toneCurveLut[i][1] * range, 0.0f, range));
+      const int r = toneCurveLut[i][0];
+      const int g = toneCurveLut[i][1];
+      const int b = toneCurveLut[i][2];
 
       if (outputBpp == 8) {
         toneCurveTable.at<uint8_t>(i, 0) = r;
@@ -170,19 +163,17 @@ class CameraIspPipe : public CameraIsp {
     Mat vignetteCurveTableV = Mat(height, 3, CV_32F);
 
     for (int j = 0;  j < width; ++j) {
-      Point3f v = (*vignetteCurve)(std::abs(j - halfWidth)  / halfWidth);
-
-      vignetteCurveTableH.at<float>(j, 0) = v.x;
-      vignetteCurveTableH.at<float>(j, 1) = v.y;
-      vignetteCurveTableH.at<float>(j, 2) = v.z;
+      const Vec3f v = curveHAtPixel(j);
+      vignetteCurveTableH.at<float>(j, 0) = v[0];
+      vignetteCurveTableH.at<float>(j, 1) = v[2];
+      vignetteCurveTableH.at<float>(j, 2) = v[1];
     }
 
     for (int i = 0; i < height; ++i) {
-      const Point3f v = (*vignetteCurve)(std::abs(i - halfHeight) / halfHeight);
-
-      vignetteCurveTableV.at<float>(i, 0) = v.x;
-      vignetteCurveTableV.at<float>(i, 1) = v.y;
-      vignetteCurveTableV.at<float>(i, 2) = v.z;
+      const Vec3f v = curveVAtPixel(i);
+      vignetteCurveTableV.at<float>(i, 0) = v[0];
+      vignetteCurveTableV.at<float>(i, 1) = v[1];
+      vignetteCurveTableV.at<float>(i, 2) = v[2];
     }
 
     // Marshal these tables into Halide buffers
@@ -208,7 +199,7 @@ class CameraIspPipe : public CameraIsp {
     vignetteTableHBp.stride[1] = 3;
     vignetteTableHBp.elem_size = sizeof(float);
 
-    vignetteTableVBp.host =vignetteCurveTableV.data;
+    vignetteTableVBp.host = vignetteCurveTableV.data;
     vignetteTableVBp.extent[0] = 3;
     vignetteTableVBp.extent[1] = height;
     vignetteTableVBp.stride[0] = 1;
