@@ -6,7 +6,6 @@ list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR} )
 FIND_PACKAGE(OpenCV)
 FIND_PACKAGE(Ceres REQUIRED)
 
-
 FIND_PACKAGE(OpenCV 3 REQUIRED)
 INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source)
@@ -17,13 +16,6 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source/calibration)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source/render)
 INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR})
 INCLUDE_DIRECTORIES(/usr/local/include/eigen3)
-
-find_package(Qt5Core)
-find_package(Qt5Gui)
-find_package(Qt5Widgets)
-find_package(Qt5Concurrent)
-find_package(Qt5OpenGL)
-find_package(Qt5Test)
 
 find_package(TBB REQUIRED )
 
