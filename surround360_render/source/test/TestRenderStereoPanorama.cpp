@@ -365,7 +365,7 @@ void projectSphericalCamImages(
   }
 
   projectionImages.resize(camImages.size());
-  vector<std::thread> threads;
+  /*vector<std::thread> threads;
   for (int camIdx = 0; camIdx < camImages.size(); ++camIdx) {
     if (rig.isNewFormat()) {
       float hRadians = toRadians(FLAGS_side_camera_h_fov_deg);
@@ -399,8 +399,41 @@ void projectSphericalCamImages(
       );
   }
   }
-  for (std::thread& t : threads) { t.join(); }
-
+  for (std::thread& t : threads) { t.join(); }*/\
+  
+  //[mbs]
+  parallel_for_<int>(0,projectionImages.size(),[&](int camIdx) {
+    if (rig.isNewFormat()) {
+      float hRadians = toRadians(FLAGS_side_camera_h_fov_deg);
+      float vRadians = toRadians(FLAGS_side_camera_v_fov_deg);
+      projectionImages[camIdx].create(
+        FLAGS_eqr_height * vRadians / M_PI,
+        FLAGS_eqr_width * hRadians / (2 * M_PI),
+        CV_8UC4);
+      // the negative sign here is so the camera array goes clockwise
+      float direction = -float(camIdx) / float(camImages.size()) * 2.0f * M_PI;
+      projectSideToSpherical(
+        ref(projectionImages[camIdx]),
+        cref(camImages[camIdx]),
+        cref(rig.rigSideOnly[camIdx]),
+        direction + hRadians / 2,
+        direction - hRadians / 2,
+        vRadians / 2,
+        -vRadians / 2,
+        brightnessAdjustments[camIdx]);
+    } else {
+      projectCamImageToSphericalThread(
+        brightnessAdjustments[camIdx],
+        &intrinsic,
+        &distCoeffs,
+        &rig.camModelArray[camIdx],
+        &rig.sideCamTransforms[camIdx],
+        &camImages[camIdx],
+        &projectionImages[camIdx]
+      );
+    }
+  }, 1);
+  
   if (FLAGS_save_debug_images) {
     for (int camIdx = 0; camIdx < rig.getSideCameraCount(); ++camIdx) {
       const string cropImageFilename = FLAGS_output_data_dir +
