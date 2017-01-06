@@ -188,6 +188,7 @@ TARGET_LINK_LIBRARIES(
   TestRenderStereoPanorama
   LibVrCamera
   LibJSON
+  folly
   glog
   gflags
   ${OpenCV_LIBS}
@@ -253,6 +254,7 @@ TARGET_LINK_LIBRARIES(
   TestImageWarper
   LibVrCamera
   LibJSON
+  folly
   glog
   gflags
   ${OpenCV_LIBS}
@@ -302,6 +304,7 @@ TARGET_LINK_LIBRARIES(
   TestHyperPreview
   LibVrCamera
   LibJSON
+  folly
   glog
   gflags
   ${OpenCV_LIBS}
@@ -370,6 +373,7 @@ TARGET_LINK_LIBRARIES(
   TestRenderWithoutSides
   LibVrCamera
   LibJSON
+  folly
   gflags
   glog
   ${OpenCV_LIBS}

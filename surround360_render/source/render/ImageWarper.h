@@ -11,6 +11,7 @@
 
 #include <vector>
 
+#include "Camera.h"
 #include "CameraMetadata.h"
 #include "CvUtil.h"
 #include "MikeUtil.h"
@@ -79,6 +80,15 @@ Mat sideFisheyeToSpherical(
   const CameraMetadata& camModel,
   const int outWidth,
   const int outHeight);
+
+void bicubicRemapToSpherical(
+  Mat& dst,
+  const Mat& src,
+  const Camera& camera,
+  const float leftAngle,
+  const float rightAngle,
+  const float topAngle,
+  const float bottomAngle);
 
 } // namespace warper
 } // namespace surround360
