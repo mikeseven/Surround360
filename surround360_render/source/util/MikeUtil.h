@@ -7,6 +7,7 @@
 #include <tbb/parallel_for.h>
 #include <tbb/parallel_reduce.h>
 #include <tbb/blocked_range2d.h>
+#include <tbb/partitioner.h>
 
 namespace surround360 {
 // TBB setup
@@ -20,6 +21,8 @@ enum Parallel
   OpenMP
 #endif
 };
+
+extern tbb::affinity_partitioner ap;
 
 /**
  * 1D parallel for
@@ -36,7 +39,7 @@ inline void parallel_for_(const T x_min, const T x_max,
                         [&func](const tbb::blocked_range<T> &r) {
                           for (T x = r.begin(); x != r.end(); ++x)
                             func(x);
-                        });
+                        },ap);
       break;
 #ifdef _OPENMP
     case Parallel::OpenMP:
@@ -73,7 +76,7 @@ inline void parallel_for_(const T outer_min, const T outer_max,
               func(x, y);
             }
           }
-        });
+        },ap);
       break;
 #ifdef _OPENMP
     case Parallel::OpenMP:

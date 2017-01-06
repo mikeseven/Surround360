@@ -19,6 +19,7 @@
 #include <glog/logging.h>
 
 #include <tbb/task_scheduler_init.h>
+#include <tbb/partitioner.h>
 
 namespace fLB {
 extern bool FLAGS_help;
@@ -26,6 +27,8 @@ extern bool FLAGS_helpshort;
 }
 
 namespace surround360 {
+tbb::affinity_partitioner ap;
+
 namespace util {
 
 using namespace std;
@@ -74,7 +77,7 @@ void initSurround360(int argc, char** argv) {
 
   // TBB
   const int nthreads = tbb::task_scheduler_init::default_num_threads();
-  tbb::task_scheduler_init init(nthreads*2); // x2 for hyper-threading
+  tbb::task_scheduler_init init(tbb::task_scheduler_init::automatic);//nthreads*2); // x2 for hyper-threading
 
   // GFlags
   google::ParseCommandLineNonHelpFlags(&argc, &argv, true);
