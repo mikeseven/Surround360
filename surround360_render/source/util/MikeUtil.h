@@ -11,7 +11,7 @@
 
 namespace surround360 {
 // TBB setup
-static constexpr int TBB_GRAIN_Y = 256;
+static constexpr int TBB_GRAIN_Y = 64;
 
 enum Parallel
 {
