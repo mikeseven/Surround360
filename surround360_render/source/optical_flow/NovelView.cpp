@@ -34,15 +34,15 @@ Mat NovelViewUtil::generateNovelViewSimpleCvRemap(
   const int w = srcImage.cols;
   const int h = srcImage.rows;
   Mat warpMap = Mat(Size(w, h), CV_32FC2);
-  parallel_for_<int>(0,h,0,w,[&](int x, int y) { //[mbs]
-  //for (int y = 0; y < h; ++y) {
-    //for (int x = 0; x < w; ++x) {
+  int x,y;
+#pragma omp parallel for private(x,y) schedule(dynamic)
+  for (y = 0; y < h; ++y) {
+    for (x = 0; x < w; ++x) {
       Point2f flowDir = flow.at<Point2f>(y, x);
       warpMap.at<Point2f>(y, x) =
         Point2f(x + flowDir.x * t, y + flowDir.y * t);
-    //}
-  //}
-  });
+    }
+  }
   Mat novelView;
   remap(srcImage, novelView, warpMap, Mat(), CV_INTER_CUBIC);
   return novelView;
@@ -57,9 +57,10 @@ Mat NovelViewUtil::combineNovelViews(
     const Mat& flowRtoL) {
 
   Mat blendImage(imageL.size(), CV_8UC4);
-  parallel_for_<int>(0,imageL.rows,0,imageL.cols,[&](int x, int y) { //[mbs]
-  //for (int y = 0; y < imageL.rows; ++y) {
-    //for (int x = 0; x < imageL.cols; ++x) {
+  int x,y;
+#pragma omp parallel for private(x,y) schedule(dynamic)
+  for (y = 0; y < imageL.rows; ++y) {
+    for (x = 0; x < imageL.cols; ++x) {
       const Vec4b colorL = imageL.at<Vec4b>(y, x);
       const Vec4b colorR = imageR.at<Vec4b>(y, x);
       Vec4b colorMixed;
@@ -98,9 +99,8 @@ Mat NovelViewUtil::combineNovelViews(
           255);
       }
       blendImage.at<Vec4b>(y, x) = colorMixed;
-    //}
-  //}
-  });
+    }
+  }
   return blendImage;
 }
 
@@ -116,9 +116,10 @@ Mat NovelViewUtil::combineLazyViews(
     ColorAdjustmentSampleLogger::instance();
 
   Mat blendImage(imageL.size(), CV_8UC4);
-  parallel_for_<int>(0,imageL.rows,0,imageL.cols,[&](int x, int y) { //[mbs]
-  //for (int y = 0; y < imageL.rows; ++y) {
-    //for (int x = 0; x < imageL.cols; ++x) {
+  int x,y;
+#pragma omp parallel for private(x,y) schedule(dynamic)
+  for (y = 0; y < imageL.rows; ++y) {
+    for (x = 0; x < imageL.cols; ++x) {
       const Vec4b colorL = imageL.at<Vec4b>(y, x);
       const Vec4b colorR = imageR.at<Vec4b>(y, x);
 
@@ -169,9 +170,8 @@ Mat NovelViewUtil::combineLazyViews(
           255);
       }
       blendImage.at<Vec4b>(y, x) = colorMixed;
-    //}
-  //}
-  });
+    }
+  }
   return blendImage;
 }
 
@@ -203,24 +203,22 @@ pair<Mat, Mat> NovelViewGeneratorLazyFlow::renderLazyNovelView(
 
   // a composition of remap
   Mat warpOpticalFlow = Mat(Size(width, height), CV_32FC2);
-  /*for (int y = 0; y < height; ++y) {
-     for (int x = 0; x < width; ++x) {
+  int x,y;
+#pragma omp parallel for private(x,y) schedule(dynamic)
+  for (y = 0; y < height; ++y) {
+     for (x = 0; x < width; ++x) {
         const Point3f lazyWarp = novelViewWarpBuffer[x][y];
         warpOpticalFlow.at<Point2f>(y, x) = Point2f(lazyWarp.x, lazyWarp.y);
      }
-  }*/
-  // [mbs]
-  parallel_for_<int>(0,height,0,width,[&](int x, int y) {
-     const Point3f lazyWarp = novelViewWarpBuffer[x][y];
-     warpOpticalFlow.at<Point2f>(y, x) = Point2f(lazyWarp.x, lazyWarp.y);
-  });
+  }
 
   Mat remappedFlow;
   remap(opticalFlow, remappedFlow, warpOpticalFlow, Mat(), CV_INTER_CUBIC);
 
   Mat warpComposition = Mat(Size(width, height), CV_32FC2);
-  /*for (int y = 0; y < height; ++y) {
-      for (int x = 0; x < width; ++x) {
+  #pragma omp parallel for private(x,y) schedule(dynamic)
+  for (y = 0; y < height; ++y) {
+      for (x = 0; x < width; ++x) {
         const Point3f lazyWarp = novelViewWarpBuffer[x][y];
         Point2f flowDir = remappedFlow.at<Point2f>(y, x);
         // the 3rd coordinate (z) of novelViewWarpBuffer is shift/time value
@@ -228,16 +226,7 @@ pair<Mat, Mat> NovelViewGeneratorLazyFlow::renderLazyNovelView(
         warpComposition.at<Point2f>(y, x) =
            Point2f(lazyWarp.x + flowDir.x * t, lazyWarp.y + flowDir.y * t);
      }
-  }*/
-   //[mbs]
-  parallel_for_<int>(0,height,0,width,[&](int x, int y) {
-     const Point3f lazyWarp = novelViewWarpBuffer[x][y];
-     Point2f flowDir = remappedFlow.at<Point2f>(y, x);
-     // the 3rd coordinate (z) of novelViewWarpBuffer is shift/time value
-     const float t = invertT ? (1.0f - lazyWarp.z) : lazyWarp.z;
-     warpComposition.at<Point2f>(y, x) =
-        Point2f(lazyWarp.x + flowDir.x * t, lazyWarp.y + flowDir.y * t);
-  });
+  }
 
   Mat novelView;
   remap(srcImage, novelView, warpComposition, Mat(), CV_INTER_CUBIC);
@@ -246,8 +235,9 @@ pair<Mat, Mat> NovelViewGeneratorLazyFlow::renderLazyNovelView(
   // O(n^3) algorithm. we need to blend the two novel views based on the
   // time shift value. we will pack that into the alpha channel here,
   // then use it to blend the two later.
-  /*for (int y = 0; y < height; ++y) {
-    for (int x = 0; x < width; ++x) {
+#pragma omp parallel for private(x,y) schedule(dynamic)
+  for (y = 0; y < height; ++y) {
+    for (x = 0; x < width; ++x) {
       const Point3f lazyWarp = novelViewWarpBuffer[x][y];
       Point2f flowDir = remappedFlow.at<Point2f>(y, x);
       const float t = invertT ? (1.0f - lazyWarp.z) : lazyWarp.z;
@@ -256,17 +246,7 @@ pair<Mat, Mat> NovelViewGeneratorLazyFlow::renderLazyNovelView(
       novelViewFlowMag.at<float>(y, x) =
         sqrtf(flowDir.x * flowDir.x + flowDir.y * flowDir.y);
     }
-  }*/
-  //[mbs]
-  parallel_for_<int>(0,height,0,width,[&](int x, int y) {
-     const Point3f lazyWarp = novelViewWarpBuffer[x][y];
-     Point2f flowDir = remappedFlow.at<Point2f>(y, x);
-     const float t = invertT ? (1.0f - lazyWarp.z) : lazyWarp.z;
-     novelView.at<Vec4b>(y, x)[3] =
-        int((1.0f - t) * novelView.at<Vec4b>(y, x)[3]);
-     novelViewFlowMag.at<float>(y, x) =
-        sqrtf(flowDir.x * flowDir.x + flowDir.y * flowDir.y);
-  });
+  }
 
   return make_pair(novelView, novelViewFlowMag);
 }

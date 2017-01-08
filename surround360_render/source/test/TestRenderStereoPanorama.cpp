@@ -399,10 +399,12 @@ void projectSphericalCamImages(
       );
   }
   }
-  for (std::thread& t : threads) { t.join(); }*/\
+  for (std::thread& t : threads) { t.join(); }*/
   
   //[mbs]
-  parallel_for_<int>(0,projectionImages.size(),[&](int camIdx) {
+  int camIdx;
+#pragma omp parallel for private(camIdx) schedule(static)
+  for (camIdx = 0; camIdx < camImages.size(); ++camIdx) {
     if (rig.isNewFormat()) {
       float hRadians = toRadians(FLAGS_side_camera_h_fov_deg);
       float vRadians = toRadians(FLAGS_side_camera_v_fov_deg);
@@ -432,7 +434,7 @@ void projectSphericalCamImages(
         &projectionImages[camIdx]
       );
     }
-  }, 1);
+  };
   
   if (FLAGS_save_debug_images) {
     for (int camIdx = 0; camIdx < rig.getSideCameraCount(); ++camIdx) {
@@ -583,7 +585,9 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
   for (std::thread& t : threads) { t.join(); }*/
 
   //[mbs]
-  parallel_for_<int>(0,projectionImages.size(),[&](int leftIdx) {
+  int leftIdx;
+#pragma omp parallel for private(leftIdx) schedule(static)
+  for (leftIdx = 0; leftIdx < projectionImages.size(); ++leftIdx) {
      const int rightIdx = (leftIdx + 1) % projectionImages.size();
      novelViewGenerators[leftIdx] =
         new NovelViewGeneratorAsymmetricFlow(FLAGS_side_flow_alg);
@@ -594,7 +598,7 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
         &projectionImages[rightIdx],
         novelViewGenerators[leftIdx]
       );
-  },1);
+  };
 
   opticalFlowRuntime = getCurrTimeSec() - startOpticalFlowTime;
 
@@ -634,7 +638,8 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
   for (std::thread& t : panoThreads) { t.join(); }*/
 
   //[mbs]
-  parallel_for_<int>(0,projectionImages.size(),[&](int leftIdx) {
+#pragma omp parallel for private(leftIdx) schedule(static)
+  for (leftIdx = 0; leftIdx < projectionImages.size(); ++leftIdx) {
       renderStereoPanoramaChunksThread(
          leftIdx,
          numCams,
@@ -647,7 +652,7 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
          &panoChunksL[leftIdx],
          &panoChunksR[leftIdx]
       );
-  },1);
+  };
 
   novelViewRuntime = getCurrTimeSec() - startNovelViewTime;
 

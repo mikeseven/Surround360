@@ -203,10 +203,10 @@ Mat sideFisheyeToSpherical(
   const float offsetVRad = (M_PI - fovVRad) / 2.0f;
 
   Mat warpMat(Size(outWidth, outHeight), CV_32FC2);
-  parallel_for_<int>(0,outHeight,0,outWidth,
-    [&](int x, int y) {
-  // for (int y = 0; y < outHeight; ++y) {
-  //  for (int x = 0; x < outWidth; ++x) {
+  int x,y;
+#pragma omp parallel for private(x,y) schedule(dynamic)
+  for (int y = 0; y < outHeight; ++y) {
+   for (int x = 0; x < outWidth; ++x) {
       const float theta =
         fovHRad * (1.0 - float(x) / float(outWidth)) + offsetHRad;
       const float phi = fovVRad * float(y) / float(outHeight) + offsetVRad;
@@ -221,9 +221,8 @@ Mat sideFisheyeToSpherical(
       const float srcY =
         camModel.imageCenterY + camModel.usablePixelsRadius * r * sin(theta2);
       warpMat.at<Point2f>(y, x) = Point2f(srcX, srcY);
-  //   }
-  // }
-    });
+    }
+  }
 
   Mat eqrImage(Size(outWidth, outHeight), CV_8UC4);
   remap(

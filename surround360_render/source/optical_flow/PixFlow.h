@@ -108,17 +108,16 @@ struct PixFlow : public OpticalFlowInterface {
       resize(prevI1BGRA, prevI1BGRADownscaled, downscaleSize, 0, 0, CV_INTER_CUBIC);
 
       // do motion detection vs. previous frame's images
-	  parallel_for_<int>(0,rgba0byteDownscaled.rows,0,rgba0byteDownscaled.cols,
-		[&](int x, int y) {
-      //for (int y = 0; y < rgba0byteDownscaled.rows; ++y) {
-         //for (int x = 0; x < rgba0byteDownscaled.cols; ++x) {
+  int x,y;
+#pragma omp parallel for private(x,y) schedule(dynamic)
+      for (int y = 0; y < rgba0byteDownscaled.rows; ++y) {
+         for (int x = 0; x < rgba0byteDownscaled.cols; ++x) {
           motion.at<float>(y, x) =
             (fabs(rgba1byteDownscaled.at<Vec4b>(y, x)[0] - prevI1BGRADownscaled.at<Vec4b>(y, x)[0]) +
              fabs(rgba1byteDownscaled.at<Vec4b>(y, x)[1] - prevI1BGRADownscaled.at<Vec4b>(y, x)[1]) +
              fabs(rgba1byteDownscaled.at<Vec4b>(y, x)[2] - prevI1BGRADownscaled.at<Vec4b>(y, x)[2])) / (255.0f * 3.0f);
-         //}
-      //}
-    });
+         }
+      }
    }
 
     // convert to various color spaces
