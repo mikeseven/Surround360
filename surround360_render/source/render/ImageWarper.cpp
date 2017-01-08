@@ -204,7 +204,7 @@ Mat sideFisheyeToSpherical(
 
   Mat warpMat(Size(outWidth, outHeight), CV_32FC2);
   int x,y;
-#pragma omp parallel for private(x,y) schedule(dynamic)
+#pragma omp parallel for simd private(x,y) collapse(2) schedule(static,64)
   for (int y = 0; y < outHeight; ++y) {
    for (int x = 0; x < outWidth; ++x) {
       const float theta =

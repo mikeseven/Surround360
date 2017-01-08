@@ -403,7 +403,7 @@ void projectSphericalCamImages(
   
   //[mbs]
   int camIdx;
-#pragma omp parallel for private(camIdx) schedule(static)
+#pragma omp parallel for private(camIdx) schedule(static,1)
   for (camIdx = 0; camIdx < camImages.size(); ++camIdx) {
     if (rig.isNewFormat()) {
       float hRadians = toRadians(FLAGS_side_camera_h_fov_deg);
@@ -586,7 +586,7 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
 
   //[mbs]
   int leftIdx;
-#pragma omp parallel for private(leftIdx) schedule(static)
+#pragma omp parallel for private(leftIdx) schedule(static,1)
   for (leftIdx = 0; leftIdx < projectionImages.size(); ++leftIdx) {
      const int rightIdx = (leftIdx + 1) % projectionImages.size();
      novelViewGenerators[leftIdx] =
@@ -638,7 +638,7 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
   for (std::thread& t : panoThreads) { t.join(); }*/
 
   //[mbs]
-#pragma omp parallel for private(leftIdx) schedule(static)
+#pragma omp parallel for private(leftIdx) schedule(static,1)
   for (leftIdx = 0; leftIdx < projectionImages.size(); ++leftIdx) {
       renderStereoPanoramaChunksThread(
          leftIdx,

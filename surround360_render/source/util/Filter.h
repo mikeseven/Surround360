@@ -103,8 +103,10 @@ void sharpenWithIirLowPass(
     const float noiseCore = 100.0f,
     const float maxVal = 255.0f) {
   // Iir unsharp mask with noise coring
-  for (int i = 0; i < inputImage.rows; ++i) {
-    for (int j = 0; j < inputImage.cols; ++j) {
+  int i,j;
+  #pragma omp parallel for private(i,j) collapse(2) schedule(static,256)
+  for (i = 0; i < inputImage.rows; ++i) {
+    for (j = 0; j < inputImage.cols; ++j) {
       const Vec3f lp = lpImage.at<P>(i, j);
       P& p = inputImage.at<P>(i, j);
       // High pass signal - just the residual of the low pass

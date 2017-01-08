@@ -76,8 +76,8 @@ void initSurround360(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
 
   // TBB
-  const int nthreads = tbb::task_scheduler_init::default_num_threads();
-  tbb::task_scheduler_init init(nthreads*2); // x2 for hyper-threading
+  // const int nthreads = tbb::task_scheduler_init::default_num_threads();
+  // tbb::task_scheduler_init init(nthreads*2); // x2 for hyper-threading
 
   // GFlags
   google::ParseCommandLineNonHelpFlags(&argc, &argv, true);

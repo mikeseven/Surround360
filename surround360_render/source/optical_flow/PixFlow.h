@@ -108,10 +108,10 @@ struct PixFlow : public OpticalFlowInterface {
       resize(prevI1BGRA, prevI1BGRADownscaled, downscaleSize, 0, 0, CV_INTER_CUBIC);
 
       // do motion detection vs. previous frame's images
-  int x,y;
-#pragma omp parallel for private(x,y) schedule(dynamic)
-      for (int y = 0; y < rgba0byteDownscaled.rows; ++y) {
-         for (int x = 0; x < rgba0byteDownscaled.cols; ++x) {
+      int x,y;
+      #pragma omp parallel for private(x,y) collapse(2) schedule(dynamic,256)
+      for (y = 0; y < rgba0byteDownscaled.rows; ++y) {
+         for (x = 0; x < rgba0byteDownscaled.cols; ++x) {
           motion.at<float>(y, x) =
             (fabs(rgba1byteDownscaled.at<Vec4b>(y, x)[0] - prevI1BGRADownscaled.at<Vec4b>(y, x)[0]) +
              fabs(rgba1byteDownscaled.at<Vec4b>(y, x)[1] - prevI1BGRADownscaled.at<Vec4b>(y, x)[1]) +
@@ -186,8 +186,10 @@ struct PixFlow : public OpticalFlowInterface {
   }
 
   void adjustFlowTowardPrevious(const Mat& prevFlow, const Mat& motion, Mat& flow) {
-    for (int y = 0; y < flow.rows; ++y) {
-      for (int x = 0; x < flow.cols; ++x) {
+    int x,y;
+    #pragma omp parallel for private(x,y) collapse(2) schedule(static,256)
+    for (y = 0; y < flow.rows; ++y) {
+      for (x = 0; x < flow.cols; ++x) {
         const float w = 1.0f - motion.at<float>(y, x);
         flow.at<Point2f>(y, x) =
           flow.at<Point2f>(y, x) * (1.0f - w) + prevFlow.at<Point2f>(y, x) * w;

@@ -35,7 +35,7 @@ Mat NovelViewUtil::generateNovelViewSimpleCvRemap(
   const int h = srcImage.rows;
   Mat warpMap = Mat(Size(w, h), CV_32FC2);
   int x,y;
-#pragma omp parallel for private(x,y) schedule(dynamic)
+#pragma omp parallel for collapse(2) private(x,y) schedule(static,512)
   for (y = 0; y < h; ++y) {
     for (x = 0; x < w; ++x) {
       Point2f flowDir = flow.at<Point2f>(y, x);
@@ -58,7 +58,7 @@ Mat NovelViewUtil::combineNovelViews(
 
   Mat blendImage(imageL.size(), CV_8UC4);
   int x,y;
-#pragma omp parallel for private(x,y) schedule(dynamic)
+#pragma omp parallel for private(x,y) collapse(2) schedule(static,512)
   for (y = 0; y < imageL.rows; ++y) {
     for (x = 0; x < imageL.cols; ++x) {
       const Vec4b colorL = imageL.at<Vec4b>(y, x);
@@ -117,7 +117,7 @@ Mat NovelViewUtil::combineLazyViews(
 
   Mat blendImage(imageL.size(), CV_8UC4);
   int x,y;
-#pragma omp parallel for private(x,y) schedule(dynamic)
+#pragma omp parallel for private(x,y) schedule(static,512)
   for (y = 0; y < imageL.rows; ++y) {
     for (x = 0; x < imageL.cols; ++x) {
       const Vec4b colorL = imageL.at<Vec4b>(y, x);
@@ -204,7 +204,7 @@ pair<Mat, Mat> NovelViewGeneratorLazyFlow::renderLazyNovelView(
   // a composition of remap
   Mat warpOpticalFlow = Mat(Size(width, height), CV_32FC2);
   int x,y;
-#pragma omp parallel for private(x,y) schedule(dynamic)
+#pragma omp parallel for private(x,y) collapse(2) schedule(static,512)
   for (y = 0; y < height; ++y) {
      for (x = 0; x < width; ++x) {
         const Point3f lazyWarp = novelViewWarpBuffer[x][y];
@@ -216,7 +216,7 @@ pair<Mat, Mat> NovelViewGeneratorLazyFlow::renderLazyNovelView(
   remap(opticalFlow, remappedFlow, warpOpticalFlow, Mat(), CV_INTER_CUBIC);
 
   Mat warpComposition = Mat(Size(width, height), CV_32FC2);
-  #pragma omp parallel for private(x,y) schedule(dynamic)
+  #pragma omp parallel for private(x,y) collapse(2) schedule(static,512)
   for (y = 0; y < height; ++y) {
       for (x = 0; x < width; ++x) {
         const Point3f lazyWarp = novelViewWarpBuffer[x][y];
@@ -235,7 +235,7 @@ pair<Mat, Mat> NovelViewGeneratorLazyFlow::renderLazyNovelView(
   // O(n^3) algorithm. we need to blend the two novel views based on the
   // time shift value. we will pack that into the alpha channel here,
   // then use it to blend the two later.
-#pragma omp parallel for private(x,y) schedule(dynamic)
+#pragma omp parallel for private(x,y) collapse(2) schedule(static,512)
   for (y = 0; y < height; ++y) {
     for (x = 0; x < width; ++x) {
       const Point3f lazyWarp = novelViewWarpBuffer[x][y];
