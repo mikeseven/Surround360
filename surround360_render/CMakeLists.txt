@@ -3,10 +3,9 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.2)
 PROJECT(Surround360Render CXX)
 
 list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR} )
-FIND_PACKAGE(OpenCV)
+FIND_PACKAGE(OpenCV REQUIRED)
 FIND_PACKAGE(Ceres REQUIRED)
 
-FIND_PACKAGE(OpenCV 3 REQUIRED)
 INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source/util)
@@ -16,13 +15,6 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source/calibration)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source/render)
 INCLUDE_DIRECTORIES(${CMAKE_BINARY_DIR})
 INCLUDE_DIRECTORIES(/usr/local/include/eigen3)
-
-find_package(TBB REQUIRED )
-
-if ( TBB_FOUND )
-    include_directories( ${TBB_INCLUDE_DIRS} )
-    add_definitions( "-DENABLE_TBB=true" )
-endif()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # required for clang, including AppleClang
@@ -43,7 +35,7 @@ IF(NOT ${CMAKE_BUILD_TYPE} MATCHES Debug)
 ENDIF()
 
 IF (NOT MSVC)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp -std=c++11")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 ENDIF()
 
 IF(NOT APPLE AND NOT MSVC)
@@ -463,48 +455,48 @@ ENDIF()
 
 ### TestVignettingCalibration ###
 
-IF (DEFINED HALIDE_DIR)
-  ADD_EXECUTABLE(
-    TestVignettingCalibration
-    source/test/TestVignettingCalibration.cpp
-    "${CMAKE_BINARY_DIR}/CameraIspGen8.h" "${CMAKE_BINARY_DIR}/CameraIspGen16.h"
-  )
-  ADD_DEPENDENCIES(Raw2Rgb CameraIspGen)
-  TARGET_COMPILE_FEATURES(TestVignettingCalibration PRIVATE cxx_range_for)
-  TARGET_LINK_LIBRARIES(
-    TestVignettingCalibration
-    "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGenFast8${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGen8${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGenFast16${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGen16${CMAKE_STATIC_LIBRARY_SUFFIX}"
-    LibVrCamera
-    LibJSON
-    gflags
-    glog
-    folly
-    ${OpenCV_LIBS}
-    ${CERES_LIBRARIES}
-    Halide
-    dl
-    ${PLATFORM_SPECIFIC_LIBS}
-  )
-ELSE()
-  ADD_EXECUTABLE(
-    TestVignettingCalibration
-    source/test/TestVignettingCalibration.cpp)
-  TARGET_COMPILE_FEATURES(TestVignettingCalibration PRIVATE cxx_range_for)
-  TARGET_LINK_LIBRARIES(
-    TestVignettingCalibration
-    LibVrCamera
-    LibJSON
-    gflags
-    glog
-    folly
-    ${OpenCV_LIBS}
-    ${CERES_LIBRARIES}
-    ${PLATFORM_SPECIFIC_LIBS}
-  )
-ENDIF()
+# IF (DEFINED HALIDE_DIR)
+#   ADD_EXECUTABLE(
+#     TestVignettingCalibration
+#     source/test/TestVignettingCalibration.cpp
+#     "${CMAKE_BINARY_DIR}/CameraIspGen8.h" "${CMAKE_BINARY_DIR}/CameraIspGen16.h"
+#   )
+#   ADD_DEPENDENCIES(Raw2Rgb CameraIspGen)
+#   TARGET_COMPILE_FEATURES(TestVignettingCalibration PRIVATE cxx_range_for)
+#   TARGET_LINK_LIBRARIES(
+#     TestVignettingCalibration
+#     "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGenFast8${CMAKE_STATIC_LIBRARY_SUFFIX}"
+#     "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGen8${CMAKE_STATIC_LIBRARY_SUFFIX}"
+#     "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGenFast16${CMAKE_STATIC_LIBRARY_SUFFIX}"
+#     "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGen16${CMAKE_STATIC_LIBRARY_SUFFIX}"
+#     LibVrCamera
+#     LibJSON
+#     gflags
+#     glog
+#     folly
+#     ${OpenCV_LIBS}
+#     ${CERES_LIBRARIES}
+#     Halide
+#     dl
+#     ${PLATFORM_SPECIFIC_LIBS}
+#   )
+# ELSE()
+#   ADD_EXECUTABLE(
+#     TestVignettingCalibration
+#     source/test/TestVignettingCalibration.cpp)
+#   TARGET_COMPILE_FEATURES(TestVignettingCalibration PRIVATE cxx_range_for)
+#   TARGET_LINK_LIBRARIES(
+#     TestVignettingCalibration
+#     LibVrCamera
+#     LibJSON
+#     gflags
+#     glog
+#     folly
+#     ${OpenCV_LIBS}
+#     ${CERES_LIBRARIES}
+#     ${PLATFORM_SPECIFIC_LIBS}
+#   )
+# ENDIF()
 
 ### TestRenderStereoMovie ###
 

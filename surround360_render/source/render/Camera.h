@@ -1,9 +1,9 @@
 #pragma once
 
 #include <Eigen/Geometry>
-#include <folly/dynamic.h>
-#include <folly/FileUtil.h>
-#include <folly/json.h>
+// #include <folly/dynamic.h>
+// #include <folly/FileUtil.h>
+// #include <folly/json.h>
 
 namespace surround360 {
 
@@ -34,8 +34,8 @@ struct Camera {
 
   // construction and de/serialization
   Camera(const Type type, const Vector2& resolution, const Vector2& focal);
-  Camera(const folly::dynamic& json);
-  folly::dynamic serialize() const;
+  // Camera(const folly::dynamic& json);
+  // folly::dynamic serialize() const;
   static Rig loadRig(const std::string& filename);
   static void saveRig(const std::string& filename, const Rig& rig);
 
@@ -173,7 +173,7 @@ struct Camera {
       Real r = atan2(norm, -camera.z());
       return distort(r) / norm * camera.head<2>();
     } else {
-      CHECK(type == Type::RECTILINEAR) << "unexpected: " << int(type);
+      // CHECK(type == Type::RECTILINEAR) << "unexpected: " << int(type);
       // project onto z = -1 plane
       Vector2 planar = camera.head<2>() / -camera.z();
       return distortFactor(planar.squaredNorm()) * planar;
@@ -193,7 +193,7 @@ struct Camera {
     if (type == Type::FTHETA) {
       angle = r;
     } else {
-      CHECK(type == Type::RECTILINEAR) << "unexpected: " << int(type);
+      // CHECK(type == Type::RECTILINEAR) << "unexpected: " << int(type);
       angle = atan(r);
     }
     Vector3 unit;
@@ -210,38 +210,38 @@ struct Camera {
     return sensorToCamera(sensor);
   }
 
-  template <typename V>
-  static folly::dynamic serializeVector(const V& v) {
-    return folly::dynamic(v.data(), v.data() + v.size());
-  }
+  // template <typename V>
+  // static folly::dynamic serializeVector(const V& v) {
+  //   return folly::dynamic(v.data(), v.data() + v.size());
+  // }
 
-  template <int kSize>
-  static Eigen::Matrix<Real, kSize, 1> deserializeVector(
-      const folly::dynamic& json) {
-    CHECK_EQ(kSize, json.size()) << "bad vector" << json;
-    Eigen::Matrix<Real, kSize, 1> result;
-    for (int i = 0; i < kSize; ++i) {
-      result[i] = json[i].asDouble();
-    }
-    return result;
-  }
+  // template <int kSize>
+  // static Eigen::Matrix<Real, kSize, 1> deserializeVector(
+  //     const folly::dynamic& json) {
+  //   CHECK_EQ(kSize, json.size()) << "bad vector" << json;
+  //   Eigen::Matrix<Real, kSize, 1> result;
+  //   for (int i = 0; i < kSize; ++i) {
+  //     result[i] = json[i].asDouble();
+  //   }
+  //   return result;
+  // }
 
   static std::string serializeType(const Type& type) {
     if (type == Type::FTHETA) {
       return "FTHETA";
     } else {
-      CHECK(type == Type::RECTILINEAR) << "unexpected: " << int(type);
+      // CHECK(type == Type::RECTILINEAR) << "unexpected: " << int(type);
       return "RECTILINEAR";
     }
   }
 
-  static Type deserializeType(const folly::dynamic& json) {
-    for (int i = 0; ; ++i) {
-      if (serializeType(Type(i)) == json.getString()) {
-        return Type(i);
-      }
-    }
-  }
+  // static Type deserializeType(const folly::dynamic& json) {
+  //   for (int i = 0; ; ++i) {
+  //     if (serializeType(Type(i)) == json.getString()) {
+  //       return Type(i);
+  //     }
+  //   }
+  // }
 };
 
 } // namespace surround360
