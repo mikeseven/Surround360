@@ -14,7 +14,6 @@
 #include "Camera.h"
 #include "CameraMetadata.h"
 #include "CvUtil.h"
-#include "MikeUtil.h"
 
 namespace surround360 {
 namespace warper {

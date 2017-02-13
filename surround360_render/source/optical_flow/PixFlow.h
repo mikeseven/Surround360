@@ -17,7 +17,6 @@
 #include "OpticalFlowInterface.h"
 #include "OpticalFlowVisualization.h"
 #include "CvUtil.h"
-#include "MikeUtil.h"
 
 #include <gflags/gflags.h>
 #include <glog/logging.h>

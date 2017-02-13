@@ -18,16 +18,12 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
-#include <tbb/task_scheduler_init.h>
-#include <tbb/partitioner.h>
-
 namespace fLB {
 extern bool FLAGS_help;
 extern bool FLAGS_helpshort;
 }
 
 namespace surround360 {
-tbb::affinity_partitioner ap;
 
 namespace util {
 
