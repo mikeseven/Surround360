@@ -160,21 +160,19 @@ struct RigDescription {
     const string extension = getImageFileExtension(imageDir);
 
     VLOG(1) << "loadSideCameraImages spawning threads";
-    vector<std::thread> threads;
     vector<Mat> images(getSideCameraCount());
-    for (int i = 0; i < getSideCameraCount(); ++i) {
+    int i;
+  #pragma omp parallel for private(i) schedule(static,1)
+    for (i = 0; i < getSideCameraCount(); ++i) {
       const string imageFilename = getSideCameraId(i) + "." + extension;
       const string imagePath = imageDir + "/" + imageFilename;
       VLOG(1) << "imagePath = " << imagePath;
-      threads.emplace_back(
-        imreadInStdThread,
+
+        imreadInStdThread(
         imagePath,
         CV_LOAD_IMAGE_COLOR,
         &(images[i])
       );
-    }
-    for (auto& thread : threads) {
-      thread.join();
     }
 
     return images;
@@ -429,11 +427,12 @@ void projectSphericalCamImages(
   }
 
   projectionImages.resize(camImages.size());
-  vector<std::thread> threads;
   if (rig.isNewFormat()) {
     const float hRadians = 2 * approximateFov(rig.rigSideOnly, false);
     const float vRadians = 2 * approximateFov(rig.rigSideOnly, true);
-    for (int camIdx = 0; camIdx < camImages.size(); ++camIdx) {
+    int camIdx;
+  #pragma omp parallel for private(camIdx) schedule(static,1)
+    for (camIdx = 0; camIdx < camImages.size(); ++camIdx) {
       const Camera& camera = rig.rigSideOnly[camIdx];
       projectionImages[camIdx].create(
         FLAGS_eqr_height * vRadians / M_PI,
@@ -441,8 +440,7 @@ void projectSphericalCamImages(
         CV_8UC4);
       // the negative sign here is so the camera array goes clockwise
       float direction = -float(camIdx) / float(camImages.size()) * 2.0f * M_PI;
-      threads.emplace_back(
-        projectSideToSpherical,
+      projectSideToSpherical(
         ref(projectionImages[camIdx]),
         cref(camImages[camIdx]),
         cref(camera),
@@ -453,9 +451,10 @@ void projectSphericalCamImages(
         brightnessAdjustments[camIdx]);
     }
   } else {
-    for (int camIdx = 0; camIdx < camImages.size(); ++camIdx) {
-      threads.emplace_back(
-        projectCamImageToSphericalThread,
+    int camIdx;
+  #pragma omp parallel for private(camIdx) schedule(static,1)
+    for (camIdx = 0; camIdx < camImages.size(); ++camIdx) {
+        projectCamImageToSphericalThread(
         brightnessAdjustments[camIdx],
         &intrinsic,
         &distCoeffs,
@@ -466,7 +465,6 @@ void projectSphericalCamImages(
       );
     }
   }
-  for (std::thread& t : threads) { t.join(); }
 
   if (FLAGS_save_debug_images) {
     for (int camIdx = 0; camIdx < rig.getSideCameraCount(); ++camIdx) {
@@ -600,21 +598,22 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
   // setup parallel optical flow
   double startOpticalFlowTime = getCurrTimeSec();
   vector<NovelViewGenerator*> novelViewGenerators(projectionImages.size());
-  vector<std::thread> threads;
-  for (int leftIdx = 0; leftIdx < projectionImages.size(); ++leftIdx) {
+
+  int leftIdx;
+  #pragma omp parallel for private(leftIdx) schedule(static,1)
+  for (leftIdx = 0; leftIdx < projectionImages.size(); ++leftIdx) {
     const int rightIdx = (leftIdx + 1) % projectionImages.size();
     novelViewGenerators[leftIdx] =
       new NovelViewGeneratorAsymmetricFlow(FLAGS_side_flow_alg);
-    threads.push_back(std::thread(
-      prepareNovelViewGeneratorThread,
+
+      prepareNovelViewGeneratorThread(
       overlapImageWidth,
       leftIdx,
       &projectionImages[leftIdx],
       &projectionImages[rightIdx],
       novelViewGenerators[leftIdx]
-    ));
+    );
   }
-  for (std::thread& t : threads) { t.join(); }
 
   opticalFlowRuntime = getCurrTimeSec() - startOpticalFlowTime;
 
@@ -635,10 +634,9 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
   // panorama. we do this so it can be parallelized.
   vector<Mat> panoChunksL(projectionImages.size(), Mat());
   vector<Mat> panoChunksR(projectionImages.size(), Mat());
-  vector<std::thread> panoThreads;
-  for (int leftIdx = 0; leftIdx < projectionImages.size(); ++leftIdx) {
-    panoThreads.push_back(std::thread(
-      renderStereoPanoramaChunksThread,
+  #pragma omp parallel for private(leftIdx) schedule(static,1)
+  for (leftIdx = 0; leftIdx < projectionImages.size(); ++leftIdx) {
+      renderStereoPanoramaChunksThread(
       leftIdx,
       numCams,
       camImageWidth,
@@ -649,9 +647,8 @@ void generateRingOfNovelViewsAndRenderStereoSpherical(
       novelViewGenerators[leftIdx],
       &panoChunksL[leftIdx],
       &panoChunksR[leftIdx]
-    ));
+    );
   }
-  for (std::thread& t : panoThreads) { t.join(); }
 
   novelViewRuntime = getCurrTimeSec() - startNovelViewTime;
 
@@ -1022,7 +1019,7 @@ void renderStereoPanorama() {
     FLAGS_enable_render_coloradjust;
 
   RigDescription rig(FLAGS_rig_json_file, FLAGS_new_rig_format);
-  
+
   // prepare the bottom camera(s) by doing pole removal and projections in a thread.
   // will join that thread as late as possible.
   Mat bottomSpherical;
