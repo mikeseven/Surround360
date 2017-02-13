@@ -14,6 +14,10 @@ import subprocess
 import sys
 import time
 import types
+
+from os import listdir
+from os.path import isfile, join
+from PIL import Image
 from timeit import default_timer as timer
 
 current_process = None
@@ -65,6 +69,7 @@ python {SURROUND360_RENDER_DIR}/scripts/batch_process_isp.py
 --start_frame {START_FRAME}
 --end_frame {END_FRAME}
 --cam_to_isp_config_file {CAM_TO_ISP_CONFIG_FILE}
+--nbits {NBITS}
 {FLAGS_ISP_EXTRA}
 """
 
@@ -169,6 +174,7 @@ def parse_args():
   parser.add_argument('--src_intrinsic_param_file',   metavar='Intrinsic Parameters File', help='intrinsic parameters file', required=False, default=create_default_path(src_intrinsic_param_file, ""), **file_chooser)
   parser.add_argument('--rectify_file',               metavar='Rectification File', help='rectification file [or NONE]', required=False, default=create_default_path(rectify_file, "NONE"), **file_chooser)
   parser.add_argument('--rig_json_file',              metavar='Rig Geometry File', help='json file with rig geometry info', required=False, default=create_default_path(rig_json_file, ""), **file_chooser)
+  parser.add_argument('--new_rig_format',             help='Using new rig JSON format?', action='store_true', required=False)
   parser.add_argument('--verbose',                    help='increase output verbosity', action='store_true')
   parser.add_argument('--interpupilary_dist',         metavar='Inter-pupillary distance', help='0 = no stereo', required=False, default='6.4')
   parser.add_argument('--zero_parallax_dist',         metavar='Zero parallax distance', help='large number eg 10000', required=False, default='10000')
@@ -232,6 +238,8 @@ def update_isp_mappings(cam_to_isp_config_file, config_isp_path):
   with open(cam_to_isp_config_file, "w") as json_file:
     json.dump(cam_json_map, json_file, indent=4, sort_keys=True)
 
+def list_only_files(src_dir): return filter(lambda f: f[0] != ".", [f for f in listdir(src_dir) if isfile(join(src_dir, f))])
+
 if __name__ == "__main__":
   signal.signal(signal.SIGTERM, signal_term_handler)
 
@@ -265,6 +273,7 @@ if __name__ == "__main__":
   src_intrinsic_param_file  = args["src_intrinsic_param_file"]
   rectify_file              = args["rectify_file"]
   rig_json_file             = args["rig_json_file"]
+  new_rig_format            = args["new_rig_format"]
   verbose                   = args["verbose"]
   interpupilary_dist        = args["interpupilary_dist"]
   zero_parallax_dist        = args["zero_parallax_dist"]
@@ -375,6 +384,12 @@ if __name__ == "__main__":
     if verbose:
       isp_extra_params += " --verbose"
 
+    # Force 16-bit output if input is 16-bit. Else use nbits flag
+    image_dir = dest_dir + "/vid/" + str(start_frame).zfill(6) + "/raw"
+    image_path = image_dir + "/" + list_only_files(image_dir)[0]
+    image = Image.open(image_path)
+    nbits_isp = 16 if (image.mode == "I;16" or int(nbits) == 12) else 8;
+
     isp_params = {
       "SURROUND360_RENDER_DIR": surround360_render_dir,
       "ROOT_DIR": dest_dir,
@@ -382,6 +397,7 @@ if __name__ == "__main__":
       "END_FRAME": end_frame,
       "CAM_TO_ISP_CONFIG_FILE": cam_to_isp_config_file,
       "FLAGS_ISP_EXTRA": isp_extra_params,
+      "NBITS": nbits_isp,
     }
     isp_command = ISP_COMMAND_TEMPLATE.replace("\n", " ").format(**isp_params)
     run_step("isp", isp_command, verbose, dryrun, file_runtimes, num_steps)
@@ -429,6 +445,9 @@ if __name__ == "__main__":
 
       if enable_pole_removal:
         render_extra_params += " --enable_pole_removal"
+
+    if new_rig_format:
+      render_extra_params += " --new_rig_format"
 
     if enable_render_coloradjust:
       render_extra_params += " --enable_render_coloradjust"

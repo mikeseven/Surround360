@@ -121,20 +121,22 @@ Surround 360 is a hardware and software system for capturing and rendering 3d (s
 ```
 
 * Install Ceres (method 2 - OSX only)
-<pre>
-  brew install ceres-solver
-</pre>
+```
+  brew install --build-from-source ceres-solver
+```
 
 * Install OpenCV:
 ```
   cd ~
   git clone https://github.com/Itseez/opencv.git
   cd opencv
-  git checkout tags/3.1.0
   cmake -DWITH_IPP=OFF
   make
   sudo make install
 ```
+
+* Install COLMAP
+  see https://colmap.github.io/install.html
 
 * Install ffmpeg (method 1):
   see https://trac.ffmpeg.org/wiki/CompilationGuide
@@ -164,7 +166,6 @@ If python-wxgtk2.8 not available (e.g. Ubuntu 16.04):
   sudo apt update
 ```
 
-
 * Install Gooey (method 3 - OS X only):
 ```
   pip install --upgrade pip
@@ -174,31 +175,22 @@ If python-wxgtk2.8 not available (e.g. Ubuntu 16.04):
   brew link wxmac
 ```
 
-* (if using accelerated ISP) Install LLVM
+* Install PIL (method 1 - Linux only)
 ```
-  cd ~
-  svn co https://llvm.org/svn/llvm-project/llvm/branches/release_37 llvm3.7
-  svn co https://llvm.org/svn/llvm-project/cfe/branches/release_37 llvm3.7/tools/clang
-  cd llvm3.7
-  mkdir build
-  cd build
-  cmake -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_TARGETS_TO_BUILD="X86;ARM;NVPTX;AArch64;Mips;PowerPC" -DLLVM_ENABLE_ASSERTIONS=ON -DCMAKE_BUILD_TYPE=Release ..
-  make
-  export LLVM_CONFIG=$HOME/llvm3.7/build/bin/llvm-config
-  export CLANG=$HOME/llvm3.7/build/bin/clang
+  sudo apt-get install python-pil
+```
+
+* Install PIL (method 2 - OSX only)
+```
+  pip install pillow
 ```
 
 * (to use accelerated ISP) Install Halide
 ```
   cd ~
   git clone https://github.com/halide/Halide.git
-  cd Halide
-  mkdir cmake_build
-  cd cmake_build
-  export LLVM_ROOT=$HOME/llvm3.7/build
-  cmake -DLLVM_BIN=${LLVM_ROOT}/bin -DLLVM_INCLUDE="${LLVM_ROOT}/../include;${LLVM_ROOT}/include" -DLLVM_LIB=${LLVM_ROOT}/lib -DLLVM_VERSION=37 ..
-  make
 ```
+  see README file inside Halide directory for installation instructions, including LLVM dependency. If the make step throws errors about unused variables, add the option ```-DWARNINGS_AS_ERRORS=OFF``` to the cmake command
 
 ## Compiling the Surround 360 Rendering Software
 

@@ -2,9 +2,9 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.2)
 
 PROJECT(Surround360Render CXX)
 
-list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR} )
-FIND_PACKAGE(OpenCV REQUIRED)
+FIND_PACKAGE(OpenCV)
 FIND_PACKAGE(Ceres REQUIRED)
+FIND_PACKAGE(Boost COMPONENTS filesystem system)
 
 INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/source)
@@ -99,7 +99,6 @@ ADD_LIBRARY(
   ${render_SRC}
   ${util_SRC}
 )
-TARGET_LINK_LIBRARIES(LibVrCamera tbb)
 TARGET_COMPILE_FEATURES(LibVrCamera PRIVATE cxx_range_for)
 
 ### Raw2Rgb ###
@@ -455,63 +454,83 @@ ENDIF()
 
 ### TestVignettingCalibration ###
 
-# IF (DEFINED HALIDE_DIR)
-#   ADD_EXECUTABLE(
-#     TestVignettingCalibration
-#     source/test/TestVignettingCalibration.cpp
-#     "${CMAKE_BINARY_DIR}/CameraIspGen8.h" "${CMAKE_BINARY_DIR}/CameraIspGen16.h"
-#   )
-#   ADD_DEPENDENCIES(Raw2Rgb CameraIspGen)
-#   TARGET_COMPILE_FEATURES(TestVignettingCalibration PRIVATE cxx_range_for)
-#   TARGET_LINK_LIBRARIES(
-#     TestVignettingCalibration
-#     "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGenFast8${CMAKE_STATIC_LIBRARY_SUFFIX}"
-#     "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGen8${CMAKE_STATIC_LIBRARY_SUFFIX}"
-#     "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGenFast16${CMAKE_STATIC_LIBRARY_SUFFIX}"
-#     "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGen16${CMAKE_STATIC_LIBRARY_SUFFIX}"
-#     LibVrCamera
-#     LibJSON
-#     gflags
-#     glog
-#     folly
-#     ${OpenCV_LIBS}
-#     ${CERES_LIBRARIES}
-#     Halide
-#     dl
-#     ${PLATFORM_SPECIFIC_LIBS}
-#   )
-# ELSE()
-#   ADD_EXECUTABLE(
-#     TestVignettingCalibration
-#     source/test/TestVignettingCalibration.cpp)
-#   TARGET_COMPILE_FEATURES(TestVignettingCalibration PRIVATE cxx_range_for)
-#   TARGET_LINK_LIBRARIES(
-#     TestVignettingCalibration
-#     LibVrCamera
-#     LibJSON
-#     gflags
-#     glog
-#     folly
-#     ${OpenCV_LIBS}
-#     ${CERES_LIBRARIES}
-#     ${PLATFORM_SPECIFIC_LIBS}
-#   )
-# ENDIF()
+IF (DEFINED HALIDE_DIR)
+  ADD_EXECUTABLE(
+    TestVignettingCalibration
+    source/test/TestVignettingCalibration.cpp
+    "${CMAKE_BINARY_DIR}/CameraIspGen8.h" "${CMAKE_BINARY_DIR}/CameraIspGen16.h"
+  )
+  TARGET_COMPILE_FEATURES(TestVignettingCalibration PRIVATE cxx_range_for)
+  TARGET_LINK_LIBRARIES(
+    TestVignettingCalibration
+    "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGenFast8${CMAKE_STATIC_LIBRARY_SUFFIX}"
+    "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGen8${CMAKE_STATIC_LIBRARY_SUFFIX}"
+    "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGenFast16${CMAKE_STATIC_LIBRARY_SUFFIX}"
+    "${CMAKE_CURRENT_BINARY_DIR}/CameraIspGen16${CMAKE_STATIC_LIBRARY_SUFFIX}"
+    LibVrCamera
+    LibJSON
+    gflags
+    glog
+    folly
+    ${OpenCV_LIBS}
+    ${CERES_LIBRARIES}
+    Halide
+    dl
+    ${PLATFORM_SPECIFIC_LIBS}
+  )
+ELSE()
+  ADD_EXECUTABLE(
+    TestVignettingCalibration
+    source/test/TestVignettingCalibration.cpp)
+  TARGET_COMPILE_FEATURES(TestVignettingCalibration PRIVATE cxx_range_for)
+  TARGET_LINK_LIBRARIES(
+    TestVignettingCalibration
+    LibVrCamera
+    LibJSON
+    gflags
+    glog
+    folly
+    ${OpenCV_LIBS}
+    ${CERES_LIBRARIES}
+    ${PLATFORM_SPECIFIC_LIBS}
+  )
+ENDIF()
 
-### TestRenderStereoMovie ###
+### TestVignettingDataAcquisition ###
 
-# ADD_EXECUTABLE(
-#   TestRenderStereoMovie
-#   source/test/TestRenderStereoMovie.cpp
-# )
-# TARGET_COMPILE_FEATURES(TestRenderStereoMovie PRIVATE cxx_range_for)
-# TARGET_LINK_LIBRARIES(
-#   TestRenderStereoMovie
-#   LibVrCamera
-#   LibJSON
-#   glog
-#   gflags
-#   ${OpenCV_LIBS}
-#   ${PLATFORM_SPECIFIC_LIBS}
-# )
+ADD_EXECUTABLE(
+  TestVignettingDataAcquisition
+  source/test/TestVignettingDataAcquisition.cpp)
+TARGET_COMPILE_FEATURES(TestVignettingDataAcquisition PRIVATE cxx_range_for)
+TARGET_LINK_LIBRARIES(
+  TestVignettingDataAcquisition
+  LibVrCamera
+  LibJSON
+  gflags
+  glog
+  folly
+  ${OpenCV_LIBS}
+  ${CERES_LIBRARIES}
+  ${PLATFORM_SPECIFIC_LIBS}
+)
 
+### GeoemtricCalibration ###
+
+ADD_EXECUTABLE(
+  GeometricCalibration
+  source/calibration/GeometricCalibration.cpp
+)
+TARGET_LINK_LIBRARIES(
+  GeometricCalibration
+  LibVrCamera
+  LibJSON
+  gflags
+  glog
+  folly
+  boost_filesystem
+  boost_system
+  double-conversion
+  ${OpenCV_LIBS}
+  ${PLATFORM_SPECIFIC_LIBS}
+  ${CERES_LIBRARIES}
+)

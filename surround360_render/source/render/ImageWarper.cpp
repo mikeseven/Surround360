@@ -197,6 +197,7 @@ Mat sideFisheyeToSpherical(
     cvtColor(src, srcRGBA, CV_BGR2BGRA);
   }
 
+  // restrict output to fov
   const float fovHRad = toRadians(camModel.fovHorizontal);
   const float fovVRad = fovHRad / camModel.aspectRatioWH;
   const float offsetHRad = (M_PI - fovHRad) / 2.0f;
@@ -204,22 +205,34 @@ Mat sideFisheyeToSpherical(
 
   Mat warpMat(Size(outWidth, outHeight), CV_32FC2);
   int x,y;
-#pragma omp parallel for private(x,y) collapse(2) schedule(static,256)
-  for (int y = 0; y < outHeight; ++y) {
-   for (int x = 0; x < outWidth; ++x) {
+
+  /** Inverse mapping:
+   * - for each point on latlong (spherical) output image
+   * - find its projection in fisheye plane
+   */
+  #pragma omp parallel for private(x,y) collapse(2) schedule(static,256)
+  for (y = 0; y < outHeight; ++y) {
+   for (x = 0; x < outWidth; ++x) {
       const float theta =
         fovHRad * (1.0 - float(x) / float(outWidth)) + offsetHRad;
       const float phi = fovVRad * float(y) / float(outHeight) + offsetVRad;
+
+      // coordinates in spherical, from latlong map
       const float xSphere = cosf(theta) * sinf(phi);
       const float ySphere = sinf(theta) * sinf(phi);
       const float zSphere = cosf(phi);
+
+      // projection to polar coordinates in normalized coordinates
       const float theta2 = std::atan2(-zSphere, xSphere);
       const float phi2 = std::acos(ySphere);
       const float r = phi2 / toRadians(camModel.fisheyeFovDegrees / 2.0f);
+
+      // point in fisheye image
       const float srcX =
-        camModel.imageCenterX + camModel.usablePixelsRadius * r * cos(theta2);
+        camModel.imageCenterX + camModel.usablePixelsRadius * r * cosf(theta2);
       const float srcY =
-        camModel.imageCenterY + camModel.usablePixelsRadius * r * sin(theta2);
+        camModel.imageCenterY + camModel.usablePixelsRadius * r * sinf(theta2);
+
       warpMat.at<Point2f>(y, x) = Point2f(srcX, srcY);
     }
   }
