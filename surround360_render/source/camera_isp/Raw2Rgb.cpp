@@ -42,6 +42,7 @@ DEFINE_int32(output_bpp,            8,                      "output image bits p
 DEFINE_bool(accelerate,             false,                  "Use halide accelerated version");
 DEFINE_bool(fast,                   false,                  "Use fastest halide for realtime apps or previews");
 #endif
+DEFINE_bool(disable_tone_curve,     false,                  "By default tone curve is enabled");
 
 // We really want all ISP input bits to fill 16 bits
 const int kIspInputBitsPerPixel = 16;
@@ -364,8 +365,6 @@ void runPipeline(
     Mat& inputImage,
     Mat& outputImage,
     string outputImagePath) {
-  cameraIsp->addBlackLevelOffset(FLAGS_black_level_offset);
-  cameraIsp->loadImage(inputImage);
 
   double startTime = getCurrTimeSec();
   cameraIsp->getImage(outputImage);
@@ -428,6 +427,16 @@ int main(int argc, char* argv[]) {
     if (FLAGS_accelerate) {
       CameraIspPipe cameraIsp(json, FLAGS_fast, FLAGS_output_bpp);
       cameraIsp.setBitsPerPixel(kIspInputBitsPerPixel);
+      if (FLAGS_disable_tone_curve) {
+        cameraIsp.disableToneMap();
+      } else {
+        cameraIsp.enableToneMap();
+      }
+
+      cameraIsp.addBlackLevelOffset(FLAGS_black_level_offset);
+      cameraIsp.loadImage(inputImage16);
+      cameraIsp.setup();
+      cameraIsp.initPipe();
       runPipeline(&cameraIsp, inputImage16, outputImage, FLAGS_output_image_path);
       writeDng(cameraIsp, FLAGS_output_dng_path, inputImage16, outputImage);
     } else {
@@ -435,9 +444,17 @@ int main(int argc, char* argv[]) {
       {
 #endif
         CameraIsp cameraIsp(json, FLAGS_output_bpp);
-        cameraIsp.setBitsPerPixel(16);
+        cameraIsp.setBitsPerPixel(kIspInputBitsPerPixel);
         cameraIsp.setDemosaicFilter(FLAGS_demosaic_filter);
         cameraIsp.setResize(FLAGS_resize);
+        if (FLAGS_disable_tone_curve) {
+          cameraIsp.disableToneMap();
+        } else {
+          cameraIsp.enableToneMap();
+        }
+        cameraIsp.addBlackLevelOffset(FLAGS_black_level_offset);
+        cameraIsp.loadImage(inputImage16);
+        cameraIsp.setup();
         runPipeline(&cameraIsp, inputImage16, outputImage, FLAGS_output_image_path);
         writeDng(cameraIsp, FLAGS_output_dng_path, inputImage16, outputImage);
       }

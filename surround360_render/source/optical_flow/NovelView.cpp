@@ -12,7 +12,6 @@
 #include <string>
 #include <vector>
 
-#include "ColorAdjustmentSampleLogger.h"
 #include "CvUtil.h"
 #include "OpticalFlowFactory.h"
 #include "OpticalFlowInterface.h"
@@ -24,7 +23,6 @@ namespace optical_flow {
 using namespace std;
 using namespace cv;
 using namespace surround360::util;
-using namespace surround360::color_adjust;
 
 Mat NovelViewUtil::generateNovelViewSimpleCvRemap(
     const Mat& srcImage,
@@ -108,12 +106,7 @@ Mat NovelViewUtil::combineLazyViews(
     const Mat& imageL,
     const Mat& imageR,
     const Mat& flowMagL,
-    const Mat& flowMagR,
-    const int leftImageIdx,
-    const int rightImageIdx) {
-
-  ColorAdjustmentSampleLogger& colorSampleLogger =
-    ColorAdjustmentSampleLogger::instance();
+    const Mat& flowMagR) {
 
   Mat blendImage(imageL.size(), CV_8UC4);
   parallel_for_<int>(0,imageL.rows,0,imageL.cols,[&](int x, int y) { //[mbs]
@@ -133,15 +126,6 @@ Mat NovelViewUtil::combineLazyViews(
       } else if (colorR[3] == 0) {
         colorMixed = Vec4b(colorL[0], colorL[1], colorL[2], outAlpha);
       } else {
-
-        // log the colors that are being blended so we can adjust the images
-        // color/brightness (requires a second pass/re-render).
-        colorSampleLogger.addSample(
-          leftImageIdx,
-          rightImageIdx,
-          colorL,
-          colorR);
-
         const float magL = flowMagL.at<float>(y,x) / float(imageL.cols);
         const float magR = flowMagR.at<float>(y,x) / float(imageL.cols);
         float blendL = float(colorL[3]);
@@ -272,9 +256,7 @@ pair<Mat, Mat> NovelViewGeneratorLazyFlow::renderLazyNovelView(
 }
 
 pair<Mat, Mat> NovelViewGeneratorLazyFlow::combineLazyNovelViews(
-    const LazyNovelViewBuffer& lazyBuffer,
-    const int leftImageIdx,
-    const int rightImageIdx) {
+    const LazyNovelViewBuffer& lazyBuffer) {
 
   // two images for the left eye (to be combined)
   pair<Mat, Mat> leftEyeFromLeft = renderLazyNovelView(
@@ -308,16 +290,12 @@ pair<Mat, Mat> NovelViewGeneratorLazyFlow::combineLazyNovelViews(
     leftEyeFromLeft.first,
     leftEyeFromRight.first,
     leftEyeFromLeft.second,
-    leftEyeFromRight.second,
-    leftImageIdx,
-    rightImageIdx);
+    leftEyeFromRight.second);
   Mat rightEyeCombined = NovelViewUtil::combineLazyViews(
     rightEyeFromLeft.first,
     rightEyeFromRight.first,
     rightEyeFromLeft.second,
-    rightEyeFromRight.second,
-    leftImageIdx,
-    rightImageIdx);
+    rightEyeFromRight.second);
   return make_pair(leftEyeCombined, rightEyeCombined);
 }
 
