@@ -80,7 +80,7 @@ void initSurround360(int argc, char** argv) {
   tbb::task_scheduler_init init(nthreads*2); // x2 for hyper-threading
 
   // GFlags
-  google::ParseCommandLineNonHelpFlags(&argc, &argv, true);
+  gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
   fLB::FLAGS_helpshort = fLB::FLAGS_help;
   fLB::FLAGS_help = false;
   google::HandleCommandLineHelpFlags();
